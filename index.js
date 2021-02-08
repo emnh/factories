@@ -30,8 +30,8 @@ const fragment = `
   uniform float time;
   
   void main(){
-    vec2 uv = vec2(vTextureCoord.x, 1.-vTextureCoord.y);
-    uv.x = mod(uv.x + time, 1.0);
+    vec2 uv = vec2(vTextureCoord.x, vTextureCoord.y);
+    uv.x = mod(uv.x + time, 0.5) * 0.5 + 0.5;
     gl_FragColor = texture2D(uSampler, uv);
   }
 `;
@@ -52,62 +52,61 @@ class Conveyor {
     const graphics = new PIXI.Graphics();
 
     graphics.lineStyle(1, this.color, 1);
-    const bands = 3;
+    const bands = 12;
     for (let i = 0; i < bands; i++) {
-      const xoffset = (i * 0.5 * (this.width - 1)) / bands + 1;
+      const xoffset = (2.0 * (i * (this.width - 1))) / bands + 1;
       const dheight = 0.1;
       graphics.moveTo(xoffset, this.height * 0.5);
-      graphics.lineTo(this.width * 0.5 + xoffset, this.height * dheight);
+      graphics.lineTo(xoffset + this.width * 0.25, this.height * dheight);
       graphics.moveTo(xoffset, this.height * 0.5);
       graphics.lineTo(
-        this.width * 0.5 + xoffset,
+        xoffset + this.width * 0.25,
         this.height * (1.0 - dheight)
       );
     }
-    graphics.position.x = 0.5 * this.width;
-    graphics.position.y = 0.5 * this.height;
-    graphics.pivot.set(0.5 * this.width, 0.5 * this.height);
+    //graphics.position.x = 0.5 * this.width;
+    //graphics.position.y = 0.5 * this.height;
+    //graphics.pivot.set(0.5 * this.width, 0.5 * this.height);
     //graphics.rotation = 0.5 * Math.PI * Math.floor(Math.random() * 4);
-    container.width = this.width;
-    container.height = this.height;
+    //container.width = this.width;
+    //container.height = this.height;
 
     const filter = new PIXI.Filter(null, fragment, {
       time: 0.0
     });
 
     //Apply it to our object
-    //graphics.filters = [filter];
+    graphics.filters = [filter];
 
     //graphics.endFill();
     container.addChild(graphics);
 
     const sprites = [];
-    const spriteCount = 10;
+    const spriteCount = 60;
     for (let i = 0; i < spriteCount; i++) {
       const renderTexture = PIXI.RenderTexture.create({
-        width: this.width,
+        width: this.width * 2,
         height: this.height
       });
       filter.uniforms.time = i / spriteCount;
       app.renderer.render(container, renderTexture);
       //console.log(app.renderer);
       //renderTexture.updateUvs();
-      renderTexture.updateUvs();
+      //renderTexture.updateUvs();
       sprites.push(renderTexture);
       //sprites[sprites.length - 1].texture.updateUVs();
     }
     //console.log(sprites);
 
-    const anim = new PIXI.AnimatedSprite(sprites);
-    anim.animationSpeed = 1.0;
-    anim.play();
-    return anim;
+    // const anim = new PIXI.AnimatedSprite(sprites);
+    // anim.animationSpeed = 1.0;
+    // anim.play();
+    return sprites;
   }
 }
 
-const conveyor = new Conveyor(100, 100).draw();
-
-app.stage.addChild(conveyor);
+const conveyor = new Conveyor(50, 50).draw();
+//app.stage.addChild(conveyor);
 
 class Cell {
   constructor(x, y, width, height, obj) {
@@ -121,7 +120,15 @@ class Cell {
 
   draw() {
     const container = new PIXI.Container();
-    const graphics = new PIXI.Graphics();
+    const belt = new PIXI.AnimatedSprite(conveyor);
+    belt.position.set(0.5 * this.width, 0.5 * this.height);
+    belt.anchor.set(0.5);
+    belt.rotation = 0.5 * Math.PI * Math.floor(Math.random() * 4);
+    belt.width = this.width;
+    belt.height = this.height;
+    belt.animationSpeed = 1.0;
+    belt.play();
+    container.addChild(belt);
     return container;
   }
 
