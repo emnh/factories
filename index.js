@@ -162,7 +162,13 @@ class Pod {
           const ddx = this.container.x / this.width - nx;
           const ddy = this.container.y / this.height - ny;
           const d = Math.sqrt(ddx * ddx + ddy * ddy);
-          if (d < min.d) {
+          if (
+            d < min.d &&
+            nx >= 0 &&
+            nx < grid.xdim &&
+            ny >= 0 &&
+            ny < grid.ydim
+          ) {
             min.d = d;
             min.x = nx;
             min.y = ny;
