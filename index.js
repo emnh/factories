@@ -147,9 +147,30 @@ class Pod {
   }
 
   update() {
-    const x = Math.floor(this.container.x / this.width);
-    const y = Math.floor(this.container.y / this.height);
-    if (x >= 0 && x < grid.xdim && y >= 0 && y < grid.ydim) {
+    const tx = Math.floor(this.container.x / this.width);
+    const ty = Math.floor(this.container.y / this.height);
+    if (tx >= 0 && tx < grid.xdim && ty >= 0 && ty < grid.ydim) {
+      const min = {
+        x: 0,
+        y: 0,
+        d: 100
+      };
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const nx = tx + dx;
+          const ny = ty + dy;
+          const ddx = this.container.x / this.width - nx;
+          const ddy = this.container.y / this.height - ny;
+          const d = Math.sqrt(ddx * ddx + ddy * ddy);
+          if (d < min.d) {
+            min.d = d;
+            min.x = nx;
+            min.y = ny;
+          }
+        }
+      }
+      const x = min.x;
+      const y = min.y;
       const cell = this.grid.grid[x][y];
       if (cell.belt !== null) {
         const rotation = cell.belt.rotation;
