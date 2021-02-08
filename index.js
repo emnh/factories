@@ -147,8 +147,8 @@ class Pod {
   }
 
   update() {
-    const tx = Math.floor(this.container.x / this.width);
-    const ty = Math.floor(this.container.y / this.height);
+    const tx = Math.round(this.container.x / this.width);
+    const ty = Math.round(this.container.y / this.height);
     if (tx >= 0 && tx < grid.xdim && ty >= 0 && ty < grid.ydim) {
       const min = {
         x: 0,
