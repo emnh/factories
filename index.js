@@ -106,7 +106,7 @@ class Conveyor {
       //renderTexture.updateUvs();
       //renderTexture.updateUvs();
       sprites.push(renderTexture);
-      
+
       //sprites[sprites.length - 1].texture.updateUVs();
     }
     //console.log(sprites);
@@ -120,6 +120,46 @@ class Conveyor {
 
 const conveyor = new Conveyor(50, 50).draw();
 //app.stage.addChild(conveyor);
+
+class Pod {
+  constructor(x, y, width, height, grid) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.color = 0xe00000;
+    this.grid = grid;
+  }
+
+  draw() {
+    const container = new PIXI.Container();
+    const graphics = new PIXI.Graphics();
+    graphics.beginFill(this.color);
+    graphics.lineStyle(1, 0x000000, 1);
+    graphics.drawCircle(this.width * 0.5, this.width * 0.5, this.width * 0.25);
+    graphics.endFill();
+    container.addChild(graphics);
+    container.x = this.x * this.width;
+    container.y = this.y * this.height;
+    this.graphics = graphics;
+    this.container = container;
+    return container;
+  }
+
+  update() {
+    const x = Math.floor(this.container.x / this.width);
+    const y = Math.floor(this.container.y / this.height);
+    const cell = this.grid[x][y];
+    if (cell.belt !== null) {
+      const rotation = cell.belt.rotation;
+      const xd = Math.cos(rotation);
+      const yd = Math.sin(rotation);
+      const speed = 0.1;
+      this.container.x += speed * xd;
+      this.container.y += speed * yd;
+    }
+  }
+}
 
 class Cell {
   constructor(x, y, width, height, obj) {
@@ -142,6 +182,8 @@ class Cell {
     belt.animationSpeed = 1.0;
     belt.play();
     container.addChild(belt);
+    this.belt = belt;
+    this.container = container;
     return container;
   }
 
@@ -158,10 +200,12 @@ class Grid {
     this.ydim = ydim;
     this.gridColor = 0xffffff;
     this.grid = [];
+    this.objects = [];
     for (let x = 0; x < xdim; x++) {
       const col = [];
       for (let y = 0; y < ydim; y++) {
         col.push(new Cell(x, y, width / xdim, height / ydim, null));
+        this.objects.push(new Pod(x, y, width / xdim, height / ydim, this));
       }
       this.grid.push(col);
     }
@@ -195,6 +239,11 @@ class Grid {
       }
     }
 
+    for (let i = 0; i < this.objects.length; i++) {
+      const obj = this.objects[i];
+      container.addChild(obj.draw());
+    }
+
     return container;
   }
 
@@ -216,6 +265,9 @@ const raf = () => {
   // for (let i = 0; i < filters.length; i++) {
   //   filters[i].uniforms.time = performance.now() / 1000.0;
   // }
+  for (let i = 0; i < grid.objects.length; i++) {
+    grid.objects[i].update();
+  }
   requestAnimationFrame(raf);
 };
 requestAnimationFrame(raf);
