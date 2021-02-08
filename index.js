@@ -1,104 +1,87 @@
+const $ = require("jquery");
 const PIXI = require("pixi.js");
 
-const width = 800;
-const height = 800;
+const width = 1020;
+const height = 600;
 const app = new PIXI.Application({
   antialias: true,
   width: width,
-  height: height
+  height: height,
+  transparent: true
 });
 document.body.appendChild(app.view);
+$("canvas").css("position", "absolute");
+$("canvas").css("left", "140px");
+$("canvas").css("top", "120px");
 
-class Unit {
-  constructor(x, y, width, height) {
+class Cell {
+  constructor(x, y, width, height, obj) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
+    this.obj = obj;
     this.color = 0xff0000;
-    this.detail = 0x0000ff;
-    this.outline = 0xffd900;
-    this.vx = 2.0;
-    this.vy = 0.0;
   }
 
   draw() {
     const graphics = new PIXI.Graphics();
-
-    // Draw a spaceship shape
-    const thisx = this.width * 0.5;
-    const thisy = this.height * 0.5;
     graphics.beginFill(this.color);
-    graphics.lineStyle(2, this.outline, 1);
-    graphics.moveTo(thisx + this.width, thisy + this.height);
-    graphics.lineTo(thisx - this.width * 0.5, thisy + this.height * 1.5);
-    graphics.lineTo(thisx, thisy + this.height);
-    graphics.lineTo(thisx, thisy);
-    graphics.lineTo(thisx - this.width * 0.5, thisy - this.height * 0.5);
-    graphics.lineTo(thisx + this.width, thisy);
-    graphics.lineTo(thisx + this.width * 2, thisy + this.height * 0.5);
-    graphics.lineTo(thisx + this.width, thisy + this.height);
-    graphics.closePath();
+    graphics.drawCircle(0, 0, this.width);
     graphics.endFill();
-
-    // Rectangle details
-    graphics.beginFill(this.detail);
-    graphics.lineStyle(2, this.outline, 0);
-    graphics.drawRect(
-      thisx + this.width * 0.5,
-      thisy + this.height * 0.1,
-      this.width * 0.25,
-      this.height * 0.25
-    );
-    graphics.drawRect(
-      thisx + this.width * 0.5,
-      thisy + this.height * (1.0 - 0.1 - 0.25),
-      this.width * 0.25,
-      this.height * 0.25
-    );
-    graphics.endFill();
-    this.graphics = graphics;
     return graphics;
   }
+}
 
-  move() {
-    if (
-      this.graphics.x + this.vx <= 0 ||
-      this.graphics.x + 3.0 * this.width + this.vx >= width
-    ) {
-      this.vx = -this.vx;
+class Grid {
+  constructor(width, height, xdim, ydim) {
+    this.width = width;
+    this.height = height;
+    this.xdim = xdim;
+    this.ydim = ydim;
+    this.gridColor = 0xffffff;
+    this.grid = [];
+    for (let x = 0; x < xdim; x++) {
+      const col = [];
+      for (let y = 0; y < ydim; y++) {
+        col.push(new Cell(x, y, width / xdim, height / ydim, null));
+      }
+      this.grid.push(col);
     }
-    if (
-      this.graphics.y + this.vy <= 0 ||
-      this.graphics.y + 3.0 * this.height + this.vy >= width
-    ) {
-      this.vy = -this.vy;
+  }
+
+  draw() {
+    const container = new PIXI.Container();
+
+    const graphics = new PIXI.Graphics();
+
+    //graphics.beginFill(this.color);
+    graphics.lineStyle(2, this.gridColor, 1);
+    for (let i = 1; i < this.xdim; i++) {
+      graphics.moveTo((i * this.width) / this.xdim, 0);
+      graphics.lineTo((i * this.width) / this.xdim, this.height);
     }
-    const angle = Math.atan2(this.vy, this.vx);
-    this.graphics.rotation = angle;
-    this.graphics.x += this.vx;
-    this.graphics.y += this.vy;
-    const f = 0.2;
-    const nangle = angle + f * (Math.random() - 0.5);
-    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    this.vx = speed * Math.cos(nangle);
-    this.vy = speed * Math.sin(nangle);
+    for (let i = 1; i < this.ydim; i++) {
+      graphics.moveTo(0, (i * this.height) / this.ydim);
+      graphics.lineTo(this.width, (i * this.height) / this.ydim);
+    }
+
+    //graphics.endFill();
+    for (let x = 0; x < this.xdim; x++) {
+      for (let y = 0; y < this.ydim; y++) {
+        const cell = this.grid[x][y];
+        cell.graphics = cell.draw();
+        cell.graphics.x = x * cell.width;
+        cell.graphics.y = y * cell.height;
+        container.addChild(cell.graphics);
+        console.log(x, y);
+      }
+    }
+    container.addChild(graphics);
+
+    return graphics;
   }
 }
 
-let us = [];
-let maxi = 100;
-const s = 10;
-for (let i = 0; i < maxi; i++) {
-  const u = new Unit(50, 50, s, 0.8 * s);
-  app.stage.addChild(u.draw());
-  us.push(u);
-}
-const raf = () => {
-  for (let i = 0; i < maxi; i++) {
-    const u = us[i];
-    u.move(app);
-  }
-  requestAnimationFrame(raf);
-};
-requestAnimationFrame(raf);
+let grid = new Grid(width, height, width / 30, height / 30);
+app.stage.addChild(grid.draw());
