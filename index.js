@@ -177,8 +177,8 @@ class Pod {
           const rotation = cell.belt.rotation;
           const xd = -Math.cos(rotation);
           const yd = -Math.sin(rotation);
-          const speed = 1.0;
-          const rspeed = 0.1;
+          const speed = 0.5;
+          const rspeed = speed * 0.1;
           if (Math.abs(xd) <= 1.0e-6) {
             this.container.x += rspeed * (x * this.width - this.container.x);
           }
