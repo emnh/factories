@@ -171,20 +171,23 @@ class Pod {
       }
       const x = min.x;
       const y = min.y;
-      const cell = this.grid.grid[x][y];
-      if (cell.belt !== null) {
-        const rotation = cell.belt.rotation;
-        const xd = -Math.cos(rotation);
-        const yd = -Math.sin(rotation);
-        const speed = 1.0;
-        if (Math.abs(xd) <= 1.0e-6) {
-          this.container.x = x * this.width;
+      if (x >= 0 && x < grid.xdim && y >= 0 && y < grid.ydim) {
+        const cell = this.grid.grid[x][y];
+        if (cell.belt !== null) {
+          const rotation = cell.belt.rotation;
+          const xd = -Math.cos(rotation);
+          const yd = -Math.sin(rotation);
+          const speed = 1.0;
+          const rspeed = 0.1;
+          if (Math.abs(xd) <= 1.0e-6) {
+            this.container.x += rspeed * (x * this.width - this.container.x);
+          }
+          if (Math.abs(yd) <= 1.0e-6) {
+            this.container.y += rspeed * (y * this.height - this.container.y);
+          }
+          this.container.x += speed * xd;
+          this.container.y += speed * yd;
         }
-        if (Math.abs(yd) <= 1.0e-6) {
-          this.container.y = y * this.height;
-        }
-        this.container.x += speed * xd;
-        this.container.y += speed * yd;
       }
     }
   }
