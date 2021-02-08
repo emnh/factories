@@ -106,6 +106,7 @@ class Conveyor {
       //renderTexture.updateUvs();
       //renderTexture.updateUvs();
       sprites.push(renderTexture);
+      
       //sprites[sprites.length - 1].texture.updateUVs();
     }
     //console.log(sprites);
