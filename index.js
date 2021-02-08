@@ -42,7 +42,8 @@ class Conveyor {
   constructor(width, height) {
     this.width = width;
     this.height = height;
-    this.color = 0xff0000;
+    this.color = 0x00ff00;
+    this.bgcolor = 0x0000a0;
   }
 
   draw() {
@@ -50,12 +51,23 @@ class Conveyor {
 
     const container = new PIXI.Container();
     const graphics = new PIXI.Graphics();
+    const dheight = 0.2;
 
-    graphics.lineStyle(1, this.color, 1);
-    const bands = 12;
+    graphics.beginFill(this.bgcolor);
+    graphics.lineStyle(1, this.color, 0);
+    graphics.drawRect(
+      0,
+      this.height * dheight,
+      this.width * 2,
+      this.height * (1.0 - 2 * dheight)
+    );
+    graphics.endFill();
+
+    const bands = 6;
     for (let i = 0; i < bands; i++) {
-      const xoffset = (2.0 * (i * (this.width - 1))) / bands + 1;
-      const dheight = 0.1;
+      const xoffset = (2.0 * (i * (this.width - 0))) / bands + 0;
+
+      graphics.lineStyle(3, this.color, 1);
       graphics.moveTo(xoffset, this.height * 0.5);
       graphics.lineTo(xoffset + this.width * 0.25, this.height * dheight);
       graphics.moveTo(xoffset, this.height * 0.5);
@@ -124,8 +136,8 @@ class Cell {
     belt.position.set(0.5 * this.width, 0.5 * this.height);
     belt.anchor.set(0.5);
     belt.rotation = 0.5 * Math.PI * Math.floor(Math.random() * 4);
-    belt.width = this.width;
-    belt.height = this.height;
+    belt.width = this.width + 1;
+    belt.height = this.height + 1;
     belt.animationSpeed = 1.0;
     belt.play();
     container.addChild(belt);
