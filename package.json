@@ -2,8 +2,14 @@
   "name": "js",
   "version": "0.0.0",
   "private": true,
+  "scripts": {
+    "dev": "webpack-dev-server --hot",
+    "webpack": "webpack -w"
+  },
   "dependencies": {
     "jquery": "^3.5.1",
-    "pixi.js": "5.3.7"
+    "pixi.js": "5.3.7",
+    "webpack": "^5.21.2",
+    "webpack-cli": "^4.5.0"
   }
 }
