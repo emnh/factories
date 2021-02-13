@@ -501,7 +501,7 @@ levelFuns.push(function() {
         const fun = () => {
 					player.countdown -= 0.1;
 					player.goal2.hint.text =
-            'You won! Loading next level in ' + Math.round(player.countdown * 10) / 10 + 's.';
+            'You won! Loading next level\n in ' + Math.round(player.countdown * 10) / 10 + 's.';
 					//player.goal2.hint.x = player.goal2.x + -player.goal2.hint.width * 0.5;
 					if (player.countdown <= 0.0) {
 						(level(2))();
@@ -598,8 +598,9 @@ const main = function() {
   //$("body").css("overflow", "hidden");
   $("body").css("margin", "0px");
   $("body").css("padding", "0px");
+	$("#subcontent").empty();
+  $("#subcontent").append(app.view);
 	(level(1))();
-  $("#content").append(app.view);
   $("#content").css("position", "absolute");
   $("#content").css("left", 0 + "px");
   $("#content").css("top", titleHeight + "px");
@@ -621,9 +622,33 @@ const main = function() {
 
 	screen.lockOrientationUniversal =
 		screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
-	screen.lockOrientationUniversal('portrait');
-	screen.orientation.lock();
+	if (screen.lockOrientationUniversal !== undefined) {
+		screen.lockOrientationUniversal('portrait');
+		if (screen.orientation !== undefined) {
+			screen.orientation.lock();
+		}
+	  $(window)
+			.bind('orientationchange', function(){
+					 if (window.orientation % 180 == 0){
+							 $(document.body).css("-webkit-transform-origin", "")
+									 .css("-webkit-transform", "");
+					 }
+					 else {
+							 if ( window.orientation > 0) { //clockwise
+								 $(document.body).css("-webkit-transform-origin", "200px 190px")
+									 .css("-webkit-transform",  "rotate(-90deg)");
+							 }
+							 else {
+								 $(document.body).css("-webkit-transform-origin", "280px 190px")
+									 .css("-webkit-transform",  "rotate(90deg)");
+							 }
+					 }
+			 })
+			.trigger('orientationchange');
+	}
 };
+
+//window.addEventListener('resize', main);
 
 try {
 	$(main);
@@ -631,26 +656,6 @@ try {
 	$("body").html(error);
 }
 
-$(document).ready(function () {
-	 $(window)    
-				.bind('orientationchange', function(){
-						 if (window.orientation % 180 == 0){
-								 $(document.body).css("-webkit-transform-origin", "")
-										 .css("-webkit-transform", "");               
-						 } 
-						 else {                   
-								 if ( window.orientation > 0) { //clockwise
-									 $(document.body).css("-webkit-transform-origin", "200px 190px")
-										 .css("-webkit-transform",  "rotate(-90deg)");  
-								 }
-								 else {
-									 $(document.body).css("-webkit-transform-origin", "280px 190px")
-										 .css("-webkit-transform",  "rotate(90deg)"); 
-								 }
-						 }
-				 })
-				.trigger('orientationchange'); 
-});
 /*
 $(document).ready(function () {
 	function reorient(e) {
