@@ -349,11 +349,11 @@ const registerRAF = function() {
   window.addEventListener("deviceorientation", handleOrientation, true);
 };
 
-class PlayerAvatar {
+class RaceGoal {
+
   constructor(width, height, x, y) {
     this.width = width;
     this.height = height;
-    this.color = 0x00FF00;
     this.goalColor = 0xFF0000;
     this.winColor = 0x0000FF;
     this.x = x;
@@ -383,7 +383,7 @@ class PlayerAvatar {
 		goal2.visible = false;
 		this.goal2 = goal2;
 
-		const hint2 = new PIXI.Text('Move player inside to win!');
+		const hint2 = new PIXI.Text('Move inside to win!');
 		hint2.style.fontSize *= fontScale;
 		hint2.x = goal.x + -hint2.width * 0.5;
 		hint2.y = goal.y + -1.5 * goal.height;
@@ -392,6 +392,58 @@ class PlayerAvatar {
 		hint3.style.fontSize *= fontScale;
 		hint3.x = hint2.x;
 		hint3.y = hint2.y;
+		hint3.visible = false;
+
+		container.addChild(hint2);
+		goal.hint = hint2;
+		container.addChild(hint3);
+		goal2.hint = hint3;
+		container.addChild(goal);
+		container.addChild(goal2);
+		container.addChild(avatar);
+
+    return container;
+	}
+
+	toggleWin() {
+		const goal = this.goal;
+		const goal2 = this.goal2;
+		goal.visible = false;
+		goal.hint.visible = false;
+		goal2.visible = true;
+		goal2.hint.visible = true;
+		if (goal.countdown === undefined) {
+			goal.countdown = 5;
+			const fun = () => {
+				goal.countdown -= 0.1;
+				goal2.hint.text =
+					'You won! Loading next level\n in ' + Math.round(goal.countdown * 10) / 10 + 's.';
+				//player.goal2.hint.x = player.goal2.x + -player.goal2.hint.width * 0.5;
+				if (goal.countdown <= 0.0) {
+					(level(2))();
+				} else {
+					setTimeout(fun, 100);
+				}
+			};
+			fun();
+		}
+	}
+};
+
+class PlayerAvatar {
+  constructor(width, height, x, y) {
+    this.width = width;
+    this.height = height;
+    this.color = 0x00FF00;
+    this.goalColor = 0xFF0000;
+    this.winColor = 0x0000FF;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw() {
+		const container = new PIXI.Container();
+		const avatar = new PIXI.Container();
 
     const graphics = new PIXI.Graphics();
     graphics.beginFill(this.color);
@@ -411,25 +463,15 @@ class PlayerAvatar {
 		this.graphics = graphics;
 		this.avatar = avatar;
 
-		container.addChild(hint2);
-		goal.hint = hint2;
-		container.addChild(hint3);
-		goal2.hint = hint3;
-		container.addChild(goal);
-		container.addChild(goal2);
 		avatar.addChild(hint);
 		avatar.addChild(graphics);
 		container.addChild(avatar);
 
     return container;
   }
-}
 
-levelFuns.push(function() {
-  const player = new PlayerAvatar(width / gridx, height / gridy, width * 0.5, height * 0.5);
-  app.stage.addChild(player.draw());
-
-  levelUpdates.push(function(delta) {
+	input(delta) {
+		const player = this;
     const keySpeed = 500.0;
     player.vx = 0;
     player.vy = 0;
@@ -487,33 +529,25 @@ levelFuns.push(function() {
 			player.avatar.y = height - 0.5 * player.graphics.height;
 		}
 
-		const dx = player.avatar.x - player.goal.x;
-		const dy = player.avatar.y - player.goal.y;
+	}
+}
+
+levelFuns.push(function() {
+  const player = new PlayerAvatar(width / gridx, height / gridy, width * 0.5, height * 0.5);
+  app.stage.addChild(player.draw());
+
+	const goal = new RaceGoal(player.width, player.height, width * 0.5, 4.0 * player.width);
+  app.stage.addChild(goal.draw());
+
+  levelUpdates.push(function(delta) {
+		player.input(delta);
+
+		const dx = player.avatar.x - goal.goal.x;
+		const dy = player.avatar.y - goal.goal.y;
 		const d = euclid(dx, dy);
 
-		if (d < player.goal.width - player.graphics.width) {
-			player.goal.visible = false;
-			player.goal.hint.visible = false;
-			player.goal2.visible = true;
-			player.goal2.hint.visible = true;
-			if (player.countdown === undefined) {
-				player.countdown = 5;
-        const fun = () => {
-					player.countdown -= 0.1;
-					player.goal2.hint.text =
-            'You won! Loading next level\n in ' + Math.round(player.countdown * 10) / 10 + 's.';
-					//player.goal2.hint.x = player.goal2.x + -player.goal2.hint.width * 0.5;
-					if (player.countdown <= 0.0) {
-						(level(2))();
-					} else {
-            setTimeout(fun, 100);
-          }
-				};
-				fun();
-			}
-		} else {
-			//player.goal2.visible = false;
-			//player.goal.visible = true;
+		if (d < goal.goal.width - player.graphics.width) {
+			goal.toggleWin();
 		}
   });
 });
