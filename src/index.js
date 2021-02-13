@@ -351,13 +351,14 @@ const registerRAF = function() {
 
 class RaceGoal {
 
-  constructor(width, height, x, y) {
+  constructor(width, height, x, y, number) {
     this.width = width;
     this.height = height;
     this.goalColor = 0xFF0000;
     this.winColor = 0x0000FF;
     this.x = x;
     this.y = y;
+		this.number = number;
   }
 
   draw() {
@@ -367,21 +368,26 @@ class RaceGoal {
     const goal = new PIXI.Graphics();
     goal.beginFill(this.goalColor);
     goal.lineStyle(1, 0x000000, 1);
-    goal.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 1.0);
+    goal.drawCircle(0, 0, this.width * 1.0);
     goal.endFill();
-		goal.x = width * 0.5;
-		goal.y = 4.0 * this.width;
+		goal.x = this.x;
+		goal.y = this.y;
 		this.goal = goal;
 
     const goal2 = new PIXI.Graphics();
     goal2.beginFill(this.winColor);
     goal2.lineStyle(1, 0x000000, 1);
-    goal2.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 1.0);
+    goal2.drawCircle(0, 0, this.width * 1.0);
     goal2.endFill();
 		goal2.x = goal.x;
 		goal2.y = goal.y;
 		goal2.visible = false;
 		this.goal2 = goal2;
+
+		const numberText = new PIXI.Text('' + this.number);
+	  numberText.x = goal.x - numberText.width * 0.5;
+	  numberText.y = goal.y - numberText.height * 0.5;
+		numberText.style.fontSize *= fontScale;
 
 		const hint2 = new PIXI.Text('Move inside to win!');
 		hint2.style.fontSize *= fontScale;
@@ -401,26 +407,33 @@ class RaceGoal {
 		container.addChild(goal);
 		container.addChild(goal2);
 		container.addChild(avatar);
+    container.addChild(numberText);
 
     return container;
 	}
 
-	toggleWin() {
+	toggle() {
 		const goal = this.goal;
 		const goal2 = this.goal2;
 		goal.visible = false;
 		goal.hint.visible = false;
 		goal2.visible = true;
 		goal2.hint.visible = true;
+		this.passed = true;
+	}
+	
+	win() {
+		const goal = this.goal;
+		const goal2 = this.goal2;
 		if (goal.countdown === undefined) {
-			goal.countdown = 5;
+			goal.countdown = 2;
 			const fun = () => {
 				goal.countdown -= 0.1;
 				goal2.hint.text =
 					'You won! Loading next level\n in ' + Math.round(goal.countdown * 10) / 10 + 's.';
 				//player.goal2.hint.x = player.goal2.x + -player.goal2.hint.width * 0.5;
 				if (goal.countdown <= 0.0) {
-					(level(2))();
+					(level(currentLevel + 1))();
 				} else {
 					setTimeout(fun, 100);
 				}
@@ -532,11 +545,12 @@ class PlayerAvatar {
 	}
 }
 
+// Level 1
 levelFuns.push(function() {
   const player = new PlayerAvatar(width / gridx, height / gridy, width * 0.5, height * 0.5);
   app.stage.addChild(player.draw());
 
-	const goal = new RaceGoal(player.width, player.height, width * 0.5, 4.0 * player.width);
+	const goal = new RaceGoal(player.width, player.height, width * 0.5, 4.0 * player.width, 1);
   app.stage.addChild(goal.draw());
 
   levelUpdates.push(function(delta) {
@@ -547,11 +561,52 @@ levelFuns.push(function() {
 		const d = euclid(dx, dy);
 
 		if (d < goal.goal.width - player.graphics.width) {
-			goal.toggleWin();
+			goal.toggle();
+			goal.win();
 		}
   });
 });
 
+// Level 2
+levelFuns.push(function() {
+  const player = new PlayerAvatar(width / gridx, height / gridy, width * 0.5, height * 0.5);
+  app.stage.addChild(player.draw());
+
+	const goal = new RaceGoal(player.width, player.height, width * 0.5, 4.0 * player.width, 1);
+  app.stage.addChild(goal.draw());
+	const goal2 = new RaceGoal(player.width, player.height, width * 0.25, height * 0.75, 2);
+  app.stage.addChild(goal2.draw());
+	const goal3 = new RaceGoal(player.width, player.height, width * 0.75, height * 0.75, 3);
+  app.stage.addChild(goal3.draw());
+
+	const checkPass = function(goal) {
+		const dx = player.avatar.x - goal.goal.x;
+		const dy = player.avatar.y - goal.goal.y;
+		const d = euclid(dx, dy);
+
+		if (d < goal.goal.width - player.graphics.width) {
+			goal.toggle();
+			return true;
+		}
+		return false;
+	};
+
+  levelUpdates.push(function(delta) {
+		player.input(delta);
+		checkPass(goal);
+    if (goal.passed) {
+      checkPass(goal2);
+    }
+    if (goal2.passed) {
+      checkPass(goal3);
+    }
+		if (goal.passed && goal2.passed && goal3.passed) {
+			goal3.win();
+		}
+  });
+});
+
+// Level 3
 levelFuns.push(function() {
   let grid = new Grid(width, height, gridx, gridy);
   app.stage.addChild(grid.draw());
