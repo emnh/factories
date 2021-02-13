@@ -26,6 +26,8 @@ const fragment = `
 
 const filters = [];
 
+const euclid = (x, y) => Math.sqrt(x * x + y * y);
+
 class Conveyor {
   constructor(width, height) {
     this.width = width;
@@ -341,7 +343,8 @@ class PlayerAvatar {
     this.width = width;
     this.height = height;
     this.color = 0x00FF00;
-    this.goalColor = 0x0FF0000;
+    this.goalColor = 0xFF0000;
+    this.winColor = 0x0000FF;
     this.x = x;
     this.y = y;
   }
@@ -353,27 +356,41 @@ class PlayerAvatar {
     const goal = new PIXI.Graphics();
     goal.beginFill(this.goalColor);
     goal.lineStyle(1, 0x000000, 1);
-    goal.drawCircle(this.width * 1.0, this.width * 1.0, this.width * 1.0);
+    goal.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 1.0);
     goal.endFill();
-		goal.x = width * 0.5 - this.width * 1.0;
-		goal.y = 0;
+		goal.x = width * 0.5;
+		goal.y = 2.0 * this.width;
 		this.goal = goal;
+
+    const goal2 = new PIXI.Graphics();
+    goal2.beginFill(this.winColor);
+    goal2.lineStyle(1, 0x000000, 1);
+    goal2.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 1.0);
+    goal2.endFill();
+		goal2.x = goal.x;
+		goal2.y = goal.y;
+		goal2.visible = false;
+		this.goal2 = goal2;
 
 		const hint2 = new PIXI.Text('Move player inside to win!');
 		hint2.x = -hint2.width * 0.5;
-		hint2.y = -hint2.height;
+		hint2.y = -goal.height;
+
+		const hint3 = new PIXI.Text('');
+		hint3.x = -hint3.width * 0.5;
+		hint3.y = -goal2.height;
 
     const graphics = new PIXI.Graphics();
     graphics.beginFill(this.color);
     graphics.lineStyle(1, 0x000000, 1);
-    graphics.drawCircle(this.width * 0.5, this.width * 0.5, this.width * 0.25);
+    graphics.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 0.25);
     graphics.endFill();
     graphics.x = 0; //-this.width * 0.5;
     graphics.y = 0; // -this.height * 0.5;
 
 		const hint = new PIXI.Text('Move me using WASD or arrow keys');
 		hint.x = -hint.width * 0.5;
-		hint.y = -hint.height;
+		hint.y = -graphics.height - hint.height;
 
     avatar.x = this.x;
     avatar.y = this.y;
@@ -381,7 +398,10 @@ class PlayerAvatar {
 		this.avatar = avatar;
 
 		goal.addChild(hint2);
+		goal2.addChild(hint3);
+		goal2.hint = hint3;
 		container.addChild(goal);
+		container.addChild(goal2);
 		avatar.addChild(hint);
 		avatar.addChild(graphics);
 		container.addChild(avatar);
@@ -424,6 +444,33 @@ levelFuns.push(function() {
 		}
 		if (player.avatar.y + 1.5 * player.graphics.height >= height) {
 			player.avatar.y = height - 1.5 * player.graphics.height;
+		}
+
+		const dx = player.avatar.x - player.goal.x;
+		const dy = player.avatar.y - player.goal.y;
+		const d = euclid(dx, dy);
+		
+		if (d < 0.25 * player.goal.width - player.graphics.width) {
+			player.goal.visible = false;
+			player.goal2.visible = true;
+			if (player.countdown === undefined) {
+				player.countdown = 5;
+        const fun = () => {
+					player.countdown -= 0.1;
+					player.goal2.hint.text =
+            'You won! Loading next level in ' + Math.round(player.countdown * 10) / 10 + 's.';
+					player.goal2.hint.x = -player.goal2.hint.width * 0.5;
+					if (player.countdown <= 0.0) {
+						(level(2))();	
+					} else {
+            setTimeout(fun, 100);
+          }
+				};
+				fun();
+			}
+		} else {
+			//player.goal2.visible = false;
+			//player.goal.visible = true;
 		}
   });
 });
