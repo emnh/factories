@@ -9,10 +9,6 @@ const app = new PIXI.Application({
   height: height,
   transparent: true
 });
-document.body.appendChild(app.view);
-$("canvas").css("position", "absolute");
-$("canvas").css("left", "140px");
-$("canvas").css("top", "120px");
 
 class Belt {
   constructor(x, y, width, height) {
@@ -28,7 +24,7 @@ const fragment = `
   varying vec2 vTextureCoord;
   uniform sampler2D uSampler;
   uniform float time;
-  
+
   void main(){
     vec2 uv = vec2(vTextureCoord.x, vTextureCoord.y);
     uv.x = mod(uv.x + time, 0.5) * 0.5 + 0.5;
@@ -146,7 +142,7 @@ class Pod {
     return container;
   }
 
-  update() {
+  update(delta) {
     const tx = Math.round(this.container.x / this.width);
     const ty = Math.round(this.container.y / this.height);
     if (tx >= 0 && tx < grid.xdim && ty >= 0 && ty < grid.ydim) {
@@ -183,7 +179,11 @@ class Pod {
           const rotation = cell.belt.rotation;
           const xd = -Math.cos(rotation);
           const yd = -Math.sin(rotation);
-          const speed = 0.5;
+          // TODO: guessed speed by trial and error
+          // should be calculated based on frames in animation and framerate.
+          // or something like that. and setInterval
+          //const speed = 10/60; 
+          const speed = 40 * delta / 1000.0; 
           const rspeed = speed * 0.1;
           if (Math.abs(xd) <= 1.0e-6) {
             this.container.x += rspeed * (x * this.width - this.container.x);
@@ -200,13 +200,14 @@ class Pod {
 }
 
 class Cell {
-  constructor(x, y, width, height, obj) {
+  constructor(x, y, width, height, rotation, obj) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
     this.obj = obj;
     this.color = 0xff0000;
+    this.rotation = rotation;
   }
 
   draw() {
@@ -214,7 +215,8 @@ class Cell {
     const belt = new PIXI.AnimatedSprite(conveyor);
     belt.position.set(0.5 * this.width, 0.5 * this.height);
     belt.anchor.set(0.5);
-    belt.rotation = 0.5 * Math.PI * Math.floor(Math.random() * 4);
+    //belt.rotation = 0.5 * Math.PI * Math.floor(Math.random() * 4);
+    belt.rotation = this.rotation;
     belt.width = this.width + 1;
     belt.height = this.height + 1;
     belt.animationSpeed = 1.0;
@@ -242,7 +244,17 @@ class Grid {
     for (let x = 0; x < xdim; x++) {
       const col = [];
       for (let y = 0; y < ydim; y++) {
-        col.push(new Cell(x, y, width / xdim, height / ydim, null));
+        let rotation = 0.0;
+        if (x == 0 && y > 0) {
+          rotation = 1 * Math.PI * 0.5;
+        } else if (x + 1 == xdim && y + 1 != ydim) {
+          rotation = 3 * Math.PI * 0.5;
+        } else if (y == 0) {
+          rotation = 2 * Math.PI * 0.5; 
+        } else {
+          rotation = 0 * Math.PI * 0.5; 
+        }
+        col.push(new Cell(x, y, width / xdim, height / ydim, rotation, null));
         this.objects.push(new Pod(x, y, width / xdim, height / ydim, this));
       }
       this.grid.push(col);
@@ -298,14 +310,75 @@ class Grid {
 let grid = new Grid(width, height, width / 30, height / 30);
 app.stage.addChild(grid.draw());
 
+const update = function(delta) {
+  for (let i = 0; i < grid.objects.length; i++) {
+    grid.objects[i].update(delta);
+  }
+};
+//setInterval(update, 5);
+let startTime = performance.now();
+let elapsed = 0.0;
 const raf = () => {
   //grid.animate();
   // for (let i = 0; i < filters.length; i++) {
   //   filters[i].uniforms.time = performance.now() / 1000.0;
   // }
-  for (let i = 0; i < grid.objects.length; i++) {
-    grid.objects[i].update();
+  const newTime = performance.now();
+  elapsed += newTime - startTime;
+  startTime = newTime;
+  if (elapsed >= 10.0) {
+    update(Math.min(20.0, elapsed));
+    elapsed = 0.0;
+    //elapsed -= 10.0;
   }
   requestAnimationFrame(raf);
 };
 requestAnimationFrame(raf);
+
+let currentLevel = 0;
+const level = function(i) {
+	return function() {
+		currentLevel = i;
+		$("#title").html("<h1>Level " + i + "</h1>");
+	};
+};
+
+const addMenuItem = function(container, text, fun) {
+  $t = $("<input type='button' value='" + text + "'></input>");
+  container.append($t);
+	$t.css("background", "#8080F0");
+  $t.css("display", "block");
+	$t.css("width", "100px");
+	$t.css("height", "50px");
+	$t.css("text-align", "center");
+	$t.on("click", fun);
+};
+
+const addMenu = function() {
+  const menu = $("#menu");
+  menu.css("position", "absolute");
+  menu.css("top", "50px");
+  for (let i = 1; i <= 10; i++) {
+    addMenuItem(menu, "Level " + i, level(i));
+  }
+};
+
+const main = function() {
+	$("#title").css("position", "absolute");
+	$("#title").css("left", "120px");
+	$("#title").css("top", "0px");
+	(level(1))();
+  $("#content").append(app.view);
+  $("#content").css("position", "absolute");
+  $("#content").css("left", "100px");
+  $("#content").css("top", "50px");
+  $("#bg").css("position", "absolute");
+  $("#bg").css("left", "0px");
+  $("#bg").css("top", "0px");
+  $("canvas").css("position", "absolute");
+  $("canvas").css("left", "140px");
+  $("canvas").css("top", "120px");
+  addMenu();
+};
+
+$(main);
