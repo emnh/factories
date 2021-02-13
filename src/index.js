@@ -1,14 +1,6 @@
 const $ = require("jquery");
 const PIXI = require("pixi.js");
-
-const width = 1020;
-const height = 600;
-const app = new PIXI.Application({
-  antialias: true,
-  width: width,
-  height: height,
-  transparent: true
-});
+require('./keys.js');
 
 class Belt {
   constructor(x, y, width, height) {
@@ -114,9 +106,6 @@ class Conveyor {
   }
 }
 
-const conveyor = new Conveyor(50, 50).draw();
-//app.stage.addChild(conveyor);
-
 class Pod {
   constructor(x, y, width, height, grid) {
     this.x = x;
@@ -145,6 +134,7 @@ class Pod {
   update(delta) {
     const tx = Math.round(this.container.x / this.width);
     const ty = Math.round(this.container.y / this.height);
+    const grid = this.grid;
     if (tx >= 0 && tx < grid.xdim && ty >= 0 && ty < grid.ydim) {
       const min = {
         x: 0,
@@ -307,39 +297,159 @@ class Grid {
   }
 }
 
-let grid = new Grid(width, height, width / 30, height / 30);
-app.stage.addChild(grid.draw());
-
-const update = function(delta) {
-  for (let i = 0; i < grid.objects.length; i++) {
-    grid.objects[i].update(delta);
-  }
-};
-//setInterval(update, 5);
-let startTime = performance.now();
-let elapsed = 0.0;
-const raf = () => {
-  //grid.animate();
-  // for (let i = 0; i < filters.length; i++) {
-  //   filters[i].uniforms.time = performance.now() / 1000.0;
-  // }
-  const newTime = performance.now();
-  elapsed += newTime - startTime;
-  startTime = newTime;
-  if (elapsed >= 10.0) {
-    update(Math.min(20.0, elapsed));
-    elapsed = 0.0;
-    //elapsed -= 10.0;
-  }
-  requestAnimationFrame(raf);
-};
-requestAnimationFrame(raf);
-
 let currentLevel = 0;
+let width = 0;
+let height = 0;
+let gridx = 0;
+let gridy = 0;
+let app = null;
+let conveyor = null;
+const levelFuns = [];
+const levelUpdates = [];
+const levelRAFs = [];
+const pressedKeys = {};
+
+const registerRAF = function() {
+  let startTime = performance.now();
+  let elapsed = 0.0;
+  const raf = () => {
+    const newTime = performance.now();
+    const rafDelta = newTime - startTime;
+    elapsed += newTime - startTime;
+    startTime = newTime;
+    if (elapsed >= 10.0) {
+      const delta = Math.min(20.0, elapsed);
+      for (let i = 0; i < levelUpdates.length; i++) {
+        levelUpdates[i](delta);
+      }
+      elapsed = 0.0;
+      //elapsed -= 10.0;
+    }
+    for (let i = 0; i < levelRAFs.length; i++) {
+      levelRAFs[i](rafDelta);
+    }
+    requestAnimationFrame(raf);
+  };
+  requestAnimationFrame(raf);
+
+  window.onkeyup = function(e) { pressedKeys[e.keyCode] = false; }
+  window.onkeydown = function(e) { pressedKeys[e.keyCode] = true; }
+};
+
+class PlayerAvatar {
+  constructor(width, height, x, y) {
+    this.width = width;
+    this.height = height;
+    this.color = 0x00FF00;
+    this.goalColor = 0x0FF0000;
+    this.x = x;
+    this.y = y;
+  }
+
+  draw() {
+		const container = new PIXI.Container();
+		const avatar = new PIXI.Container();
+
+    const goal = new PIXI.Graphics();
+    goal.beginFill(this.goalColor);
+    goal.lineStyle(1, 0x000000, 1);
+    goal.drawCircle(this.width * 1.0, this.width * 1.0, this.width * 1.0);
+    goal.endFill();
+		goal.x = width * 0.5 - this.width * 1.0;
+		goal.y = 0;
+		this.goal = goal;
+
+		const hint2 = new PIXI.Text('Move player inside to win!');
+		hint2.x = -hint2.width * 0.5;
+		hint2.y = -hint2.height;
+
+    const graphics = new PIXI.Graphics();
+    graphics.beginFill(this.color);
+    graphics.lineStyle(1, 0x000000, 1);
+    graphics.drawCircle(this.width * 0.5, this.width * 0.5, this.width * 0.25);
+    graphics.endFill();
+    graphics.x = 0; //-this.width * 0.5;
+    graphics.y = 0; // -this.height * 0.5;
+
+		const hint = new PIXI.Text('Move me using WASD or arrow keys');
+		hint.x = -hint.width * 0.5;
+		hint.y = -hint.height;
+
+    avatar.x = this.x;
+    avatar.y = this.y;
+		this.graphics = graphics;
+		this.avatar = avatar;
+
+		goal.addChild(hint2);
+		container.addChild(goal);
+		avatar.addChild(hint);
+		avatar.addChild(graphics);
+		container.addChild(avatar);
+
+    return container;
+  }
+}
+
+levelFuns.push(function() {
+  const player = new PlayerAvatar(width / gridx, height / gridy, width * 0.5, height * 0.5);
+  app.stage.addChild(player.draw());
+
+  levelUpdates.push(function(delta) {
+    const keySpeed = 500.0;
+    player.vx = 0;
+    player.vy = 0;
+
+    if (pressedKeys[KeyEvent.DOM_VK_W]) { player.vy = -keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_S]) { player.vy = keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_A]) { player.vx = -keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_D]) { player.vx = keySpeed; }
+
+    if (pressedKeys[KeyEvent.DOM_VK_UP]) { player.vy = -keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_DOWN]) { player.vy = keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_LEFT]) { player.vx = -keySpeed; }
+    if (pressedKeys[KeyEvent.DOM_VK_RIGHT]) { player.vx = keySpeed; }
+
+    const speed = delta / 1000.0;
+    player.avatar.x += speed * player.vx;
+    player.avatar.y += speed * player.vy;
+
+		if (player.avatar.x <= -0.5 * player.graphics.width) {
+			player.avatar.x = -0.5 * player.graphics.width;
+		}
+		if (player.avatar.x + 1.5 * player.graphics.width >= width) {
+			player.avatar.x = width - 1.5 * player.graphics.width;
+		}
+		if (player.avatar.y <= -0.5 * player.graphics.height) {
+			player.avatar.y = -0.5 * player.graphics.height;
+		}
+		if (player.avatar.y + 1.5 * player.graphics.height >= height) {
+			player.avatar.y = height - 1.5 * player.graphics.height;
+		}
+  });
+});
+
+levelFuns.push(function() {
+  let grid = new Grid(width, height, gridx, gridy);
+  app.stage.addChild(grid.draw());
+
+  levelUpdates.push(function(delta) {
+    for (let i = 0; i < grid.objects.length; i++) {
+      grid.objects[i].update(delta);
+    }
+  });
+
+});
+
 const level = function(i) {
 	return function() {
 		currentLevel = i;
 		$("#title").html("<h1>Level " + i + "</h1>");
+	  for (let i = app.stage.children.length - 1; i >= 0; i--){
+      app.stage.removeChild(app.stage.children[i]);
+    };
+    levelUpdates.length = 0;
+    levelRAFs.length = 0;
+    levelFuns[i - 1]();
 	};
 };
 
@@ -364,20 +474,49 @@ const addMenu = function() {
 };
 
 const main = function() {
+  const menuWidth = 120;
+  const titleHeight = 50;
+  //const imgWidth = window.innerWidth - menuWidth;
+  //const imgHeight = window.innerHeight - titleHeight;
+  const imgWidth = Math.min(window.innerWidth - menuWidth,  window.innerHeight - titleHeight);
+  const imgHeight = imgWidth;
+  const baseWidth = imgWidth * 0.85;
+  const baseHeight = imgHeight * 0.7;
+  gridx = 20; //Math.floor(baseWidth / 40);
+  gridy = gridx; //Math.floor(baseHeight / 40);
+  width = Math.floor(baseWidth / gridx) * gridx;
+  height = Math.floor(baseHeight / gridy) * gridy;
+  app = new PIXI.Application({
+    antialias: true,
+    width: width,
+    height: height,
+    transparent: true
+  });
+  conveyor = new Conveyor(50, 50).draw();
+
+  registerRAF();
+  //$("body").css("overflow", "hidden");
+  $("body").css("margin", "0px");
+  $("body").css("padding", "0px");
 	$("#title").css("position", "absolute");
-	$("#title").css("left", "120px");
+	$("#title").css("left", menuWidth + "px");
 	$("#title").css("top", "0px");
 	(level(1))();
   $("#content").append(app.view);
   $("#content").css("position", "absolute");
-  $("#content").css("left", "100px");
-  $("#content").css("top", "50px");
+  $("#content").css("left", menuWidth + "px");
+  $("#content").css("top", titleHeight + "px");
   $("#bg").css("position", "absolute");
   $("#bg").css("left", "0px");
   $("#bg").css("top", "0px");
+  $("#bg").css("width", imgWidth + "px");
+  $("#bg").css("height", imgHeight + "px");
   $("canvas").css("position", "absolute");
-  $("canvas").css("left", "140px");
-  $("canvas").css("top", "120px");
+  $("canvas").css("left", Math.floor(0.5 * (imgWidth - width)) + "px");
+  $("canvas").css("top", Math.floor(0.5 * (imgHeight - height)) + "px");
+  $("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
+  $("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
+  $("canvas").css("border", "1px solid black");
   addMenu();
 };
 
