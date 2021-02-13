@@ -3,13 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
+	<meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+	<!--
+	<link rel="stylesheet" type="text/css" href="landscape.css" media="screen and (orientation: landscape)">
+	<link rel="stylesheet" type="text/css" href="portrait.css" media="screen and (orientation: portrait)">
+	-->
   <title>Factories</title>
+	<style>
+@viewport {
+	orientation: portrait;
+}
+	</style>
 </head>
 <body>
 	<div id="menu"></div>
-	<div id="title">Hello World!</div>
 	<div id="content">
-		<img id="bg" src="https://opengameart.org/sites/default/files/map_pergament.png" />
+		<img id="bg" 
+				 src="https://opengameart.org/sites/default/files/map_pergament.png" width="10px" height="10px"/>
 	</div>
 	<script src="dist/index.js"></script>
 </body>

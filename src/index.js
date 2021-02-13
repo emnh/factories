@@ -299,17 +299,27 @@ class Grid {
   }
 }
 
+let scale = 1.0;
+let fontScale = 1.0;
 let currentLevel = 0;
 let width = 0;
 let height = 0;
+let menuWidth = 0;
+let titleHeight = 0;
 let gridx = 0;
 let gridy = 0;
 let app = null;
 let conveyor = null;
+let orientationEvent = [null];
 const levelFuns = [];
 const levelUpdates = [];
 const levelRAFs = [];
 const pressedKeys = {};
+
+const handleOrientation = function(event) {
+  //$("body").html(absolute + "," + alpha + "," + beta + "," + gamma);
+  orientationEvent[0] = event;
+};
 
 const registerRAF = function() {
   let startTime = performance.now();
@@ -336,6 +346,7 @@ const registerRAF = function() {
 
   window.onkeyup = function(e) { pressedKeys[e.keyCode] = false; }
   window.onkeydown = function(e) { pressedKeys[e.keyCode] = true; }
+  window.addEventListener("deviceorientation", handleOrientation, true);
 };
 
 class PlayerAvatar {
@@ -359,7 +370,7 @@ class PlayerAvatar {
     goal.drawCircle(this.width * 0.0, this.width * 0.0, this.width * 1.0);
     goal.endFill();
 		goal.x = width * 0.5;
-		goal.y = 2.0 * this.width;
+		goal.y = 4.0 * this.width;
 		this.goal = goal;
 
     const goal2 = new PIXI.Graphics();
@@ -373,12 +384,14 @@ class PlayerAvatar {
 		this.goal2 = goal2;
 
 		const hint2 = new PIXI.Text('Move player inside to win!');
-		hint2.x = -hint2.width * 0.5;
-		hint2.y = -goal.height;
+		hint2.style.fontSize *= fontScale;
+		hint2.x = goal.x + -hint2.width * 0.5;
+		hint2.y = goal.y + -1.5 * goal.height;
 
 		const hint3 = new PIXI.Text('');
-		hint3.x = -hint3.width * 0.5;
-		hint3.y = -goal2.height;
+		hint3.style.fontSize *= fontScale;
+		hint3.x = hint2.x;
+		hint3.y = hint2.y;
 
     const graphics = new PIXI.Graphics();
     graphics.beginFill(this.color);
@@ -388,7 +401,8 @@ class PlayerAvatar {
     graphics.x = 0; //-this.width * 0.5;
     graphics.y = 0; // -this.height * 0.5;
 
-		const hint = new PIXI.Text('Move me using WASD or arrow keys');
+		const hint = new PIXI.Text('Move using WASD,\n arrow keys\n or tilt phone');
+		hint.style.fontSize *= fontScale;
 		hint.x = -hint.width * 0.5;
 		hint.y = -graphics.height - hint.height;
 
@@ -397,8 +411,9 @@ class PlayerAvatar {
 		this.graphics = graphics;
 		this.avatar = avatar;
 
-		goal.addChild(hint2);
-		goal2.addChild(hint3);
+		container.addChild(hint2);
+		goal.hint = hint2;
+		container.addChild(hint3);
 		goal2.hint = hint3;
 		container.addChild(goal);
 		container.addChild(goal2);
@@ -429,39 +444,67 @@ levelFuns.push(function() {
     if (pressedKeys[KeyEvent.DOM_VK_LEFT]) { player.vx = -keySpeed; }
     if (pressedKeys[KeyEvent.DOM_VK_RIGHT]) { player.vx = keySpeed; }
 
+		if (orientationEvent[0] !== null) {
+			const oevent = orientationEvent[0];
+			let x    = oevent.beta;
+			let y    = oevent.gamma;
+
+			// Because we don't want to have the device upside down
+			// We constrain the x value to the range [-90,90]
+			if (x >  90) { x =  90; };
+			if (x < -90) { x = -90; };
+
+			// To make computation easier we shift the range of
+			// x and y to [0,180]
+			x += 90;
+			y += 90;
+
+			//$("body").html(x + "," + y);
+			const accSpeed = 10.0;
+
+			if (x < 90 - 0) { player.vy = -accSpeed * (90 - x); }
+			if (x > 90 + 0) { player.vy = accSpeed * (x - 90); }
+			if (y < 90 - 0) { player.vx = -accSpeed * (90 - y); }
+			if (y > 90 + 0) { player.vx = accSpeed * (y - 90); }
+
+			orientationEvent[0] = null;
+		}
+
     const speed = delta / 1000.0;
     player.avatar.x += speed * player.vx;
     player.avatar.y += speed * player.vy;
 
-		if (player.avatar.x <= -0.5 * player.graphics.width) {
-			player.avatar.x = -0.5 * player.graphics.width;
+		if (player.avatar.x <= 0.5 * player.graphics.width) {
+			player.avatar.x = 0.5 * player.graphics.width;
 		}
-		if (player.avatar.x + 1.5 * player.graphics.width >= width) {
-			player.avatar.x = width - 1.5 * player.graphics.width;
+		if (player.avatar.x + 0.5 * player.graphics.width >= width) {
+			player.avatar.x = width - 0.5 * player.graphics.width;
 		}
-		if (player.avatar.y <= -0.5 * player.graphics.height) {
-			player.avatar.y = -0.5 * player.graphics.height;
+		if (player.avatar.y <= 0.5 * player.graphics.height) {
+			player.avatar.y = 0.5 * player.graphics.height;
 		}
-		if (player.avatar.y + 1.5 * player.graphics.height >= height) {
-			player.avatar.y = height - 1.5 * player.graphics.height;
+		if (player.avatar.y + 0.5 * player.graphics.height >= height) {
+			player.avatar.y = height - 0.5 * player.graphics.height;
 		}
 
 		const dx = player.avatar.x - player.goal.x;
 		const dy = player.avatar.y - player.goal.y;
 		const d = euclid(dx, dy);
-		
-		if (d < 0.25 * player.goal.width - player.graphics.width) {
+
+		if (d < player.goal.width - player.graphics.width) {
 			player.goal.visible = false;
+			player.goal.hint.visible = false;
 			player.goal2.visible = true;
+			player.goal2.hint.visible = true;
 			if (player.countdown === undefined) {
 				player.countdown = 5;
         const fun = () => {
 					player.countdown -= 0.1;
 					player.goal2.hint.text =
             'You won! Loading next level in ' + Math.round(player.countdown * 10) / 10 + 's.';
-					player.goal2.hint.x = -player.goal2.hint.width * 0.5;
+					//player.goal2.hint.x = player.goal2.x + -player.goal2.hint.width * 0.5;
 					if (player.countdown <= 0.0) {
-						(level(2))();	
+						(level(2))();
 					} else {
             setTimeout(fun, 100);
           }
@@ -490,45 +533,55 @@ levelFuns.push(function() {
 const level = function(i) {
 	return function() {
 		currentLevel = i;
-		$("#title").html("<h1>Level " + i + "</h1>");
+		//$("#title").html("<h1>Level " + i + "</h1>");
+    //$("#title").css("top", (-titleHeight * 0.5) + "px");
 	  for (let i = app.stage.children.length - 1; i >= 0; i--){
       app.stage.removeChild(app.stage.children[i]);
     };
     levelUpdates.length = 0;
     levelRAFs.length = 0;
     levelFuns[i - 1]();
+    addMenu();
 	};
 };
 
-const addMenuItem = function(container, text, fun) {
+const addMenuItem = function(menuWidth, titleHeight, container, text, fun, background) {
   $t = $("<input type='button' value='" + text + "'></input>");
   container.append($t);
-	$t.css("background", "#8080F0");
-  $t.css("display", "block");
-	$t.css("width", "100px");
-	$t.css("height", "50px");
+	$t.css("background", background);
+  $t.css("display", "inline");
+	$t.css("width", menuWidth + "px");
+	$t.css("height", titleHeight + "px");
 	$t.css("text-align", "center");
 	$t.on("click", fun);
 };
 
 const addMenu = function() {
   const menu = $("#menu");
+  menu.empty();
   menu.css("position", "absolute");
-  menu.css("top", "50px");
+  //menu.css("top", titleHeight + "px");
   for (let i = 1; i <= 10; i++) {
-    addMenuItem(menu, "Level " + i, level(i));
+    const prefix = currentLevel == i ? "@" : "";
+    const background = currentLevel == i ? "#80FFF0" : "#8080F0";
+    addMenuItem(menuWidth, titleHeight, menu, prefix + i, level(i), background);
   }
 };
 
 const main = function() {
-  const menuWidth = 120;
-  const titleHeight = 50;
+  menuWidth = Math.min(120, window.innerWidth * 0.1);
+  titleHeight = Math.min(50, window.innerHeight * 0.05);
   //const imgWidth = window.innerWidth - menuWidth;
   //const imgHeight = window.innerHeight - titleHeight;
-  const imgWidth = Math.min(window.innerWidth - menuWidth,  window.innerHeight - titleHeight);
+  const imgWidth = Math.min(window.innerWidth,  window.innerHeight - titleHeight);
   const imgHeight = imgWidth;
-  const baseWidth = imgWidth * 0.85;
-  const baseHeight = imgHeight * 0.7;
+	fontScale = Math.min(1.0, imgWidth / 500.0);
+  /*
+  const baseWidth =
+    window.innerWidth > window.innerHeight - titleHeight ?
+      imgWidth * 0.85 : imgWidth; */
+  const baseWidth = imgWidth * 0.8;
+  const baseHeight = baseWidth; //imgHeight * 0.7;
   gridx = 20; //Math.floor(baseWidth / 40);
   gridy = gridx; //Math.floor(baseHeight / 40);
   width = Math.floor(baseWidth / gridx) * gridx;
@@ -545,14 +598,12 @@ const main = function() {
   //$("body").css("overflow", "hidden");
   $("body").css("margin", "0px");
   $("body").css("padding", "0px");
-	$("#title").css("position", "absolute");
-	$("#title").css("left", menuWidth + "px");
-	$("#title").css("top", "0px");
 	(level(1))();
   $("#content").append(app.view);
   $("#content").css("position", "absolute");
-  $("#content").css("left", menuWidth + "px");
+  $("#content").css("left", 0 + "px");
   $("#content").css("top", titleHeight + "px");
+  $("#content").css("margin-left", (0.5 * (window.innerWidth - imgWidth)) + "px");
   $("#bg").css("position", "absolute");
   $("#bg").css("left", "0px");
   $("#bg").css("top", "0px");
@@ -561,10 +612,53 @@ const main = function() {
   $("canvas").css("position", "absolute");
   $("canvas").css("left", Math.floor(0.5 * (imgWidth - width)) + "px");
   $("canvas").css("top", Math.floor(0.5 * (imgHeight - height)) + "px");
+  //$("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
+  //$("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
   $("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
   $("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
   $("canvas").css("border", "1px solid black");
-  addMenu();
+  addMenu(menuWidth, titleHeight);
+
+	screen.lockOrientationUniversal =
+		screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
+	screen.lockOrientationUniversal('portrait');
+	screen.orientation.lock();
 };
 
-$(main);
+try {
+	$(main);
+} catch (error) {
+	$("body").html(error);
+}
+
+$(document).ready(function () {
+	 $(window)    
+				.bind('orientationchange', function(){
+						 if (window.orientation % 180 == 0){
+								 $(document.body).css("-webkit-transform-origin", "")
+										 .css("-webkit-transform", "");               
+						 } 
+						 else {                   
+								 if ( window.orientation > 0) { //clockwise
+									 $(document.body).css("-webkit-transform-origin", "200px 190px")
+										 .css("-webkit-transform",  "rotate(-90deg)");  
+								 }
+								 else {
+									 $(document.body).css("-webkit-transform-origin", "280px 190px")
+										 .css("-webkit-transform",  "rotate(90deg)"); 
+								 }
+						 }
+				 })
+				.trigger('orientationchange'); 
+});
+/*
+$(document).ready(function () {
+	function reorient(e) {
+		var portrait = (window.orientation % 180 == 0);
+		//$("body > div#content").css("-webkit-transform", !portrait ? "rotate(-90deg)" : "");
+		$("canvas").css("-webkit-transform", !portrait ? "rotate(-90deg)" : "");
+	}
+	window.onorientationchange = reorient;
+	window.setTimeout(reorient, 0);
+});
+*/
