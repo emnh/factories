@@ -1,5 +1,6 @@
 const $ = require("jquery");
 const PIXI = require("pixi.js");
+const liquid = require('./liquid.js');
 require('./keys.js');
 
 class Belt {
@@ -27,6 +28,15 @@ const fragment = `
 const filters = [];
 
 const euclid = (x, y) => Math.sqrt(x * x + y * y);
+
+const fixCanvas = function(imgWidth, imgHeight, width, height) {
+  $("canvas").css("position", "absolute");
+  $("canvas").css("left", Math.floor(0.5 * (imgWidth - width)) + "px");
+  $("canvas").css("top", Math.floor(0.5 * (imgHeight - height)) + "px");
+  $("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
+  $("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
+  $("canvas").css("border", "1px solid black");
+};
 
 class Conveyor {
   constructor(width, height) {
@@ -608,6 +618,11 @@ levelFuns.push(function() {
 
 // Level 3
 levelFuns.push(function() {
+});
+
+
+// Level 4
+levelFuns.push(function() {
   let grid = new Grid(width, height, gridx, gridy);
   app.stage.addChild(grid.draw());
 
@@ -616,8 +631,8 @@ levelFuns.push(function() {
       grid.objects[i].update(delta);
     }
   });
-
 });
+
 
 const level = function(i) {
 	return function() {
@@ -689,6 +704,7 @@ const main = function() {
   $("body").css("padding", "0px");
 	$("#subcontent").empty();
   $("#subcontent").append(app.view);
+  $("#subcontent").append("<canvas id='three' />");
 	(level(1))();
   $("#content").css("position", "absolute");
   $("#content").css("left", 0 + "px");
@@ -699,15 +715,9 @@ const main = function() {
   $("#bg").css("top", "0px");
   $("#bg").css("width", imgWidth + "px");
   $("#bg").css("height", imgHeight + "px");
-  $("canvas").css("position", "absolute");
-  $("canvas").css("left", Math.floor(0.5 * (imgWidth - width)) + "px");
-  $("canvas").css("top", Math.floor(0.5 * (imgHeight - height)) + "px");
-  //$("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
-  //$("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
-  $("canvas").css("margin-right", Math.floor(0.5 * (imgWidth - width)) + "px");
-  $("canvas").css("margin-bottom", Math.floor(0.5 * (imgHeight - height)) + "px");
-  $("canvas").css("border", "1px solid black");
   addMenu(menuWidth, titleHeight);
+  $("#subcontent").append(liquid.init($("canvas#three")[0], width, height));
+	fixCanvas(imgWidth, imgHeight, width, height);
 
 	screen.lockOrientationUniversal =
 		screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
