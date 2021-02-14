@@ -19,16 +19,18 @@ vec4 V(vec2 p)
 
 void mainImage( out vec4 col, in vec2 pos )
 {
-	R = iResolution.xy; time = iTime;
+	R = iResolutionOne.xy; time = iTime;
     //pos = R*0.5 + pos*0.1;
     ivec2 p = ivec2(pos);
     
-    vec4 data = texel(ch0, pos);
-    particle P = getParticle(data, pos);
+    position tpos = getPos(pos, 0, 0, 0);
+    vec4 data = texel(ch0, tpos.tpos);
+    vec4 data2 = texel(ch0, tpos.tposZ);
+    particle P = getParticle(data, data2, tpos.addpos);
     
     //border render
-    vec3 Nb = bN(P.X);
-    float bord = smoothstep(2.*border_h,border_h*0.5,border(pos));
+    vec3 Nb = bN(P.X.xy);
+    float bord = smoothstep(2.*border_h,border_h*0.5,border(tpos.addpos.xy));
     
     vec4 rho = V(pos);
     vec3 dx = vec3(-2., 0., 2.);
@@ -54,21 +56,7 @@ void mainImage( out vec4 col, in vec2 pos )
     //col.xyz = vec3(specular);
     //return;
     
-    vec2 q = pos.xy/iResolution.xy;
-
-    vec3 e = vec3(vec2(1.)/iResolution.xy,0.);
     float f = 10.0;
-    //float p10 = texture(iChannel0, q-e.zy).z;
-    //float p01 = texture(iChannel0, q-e.xz).z;
-    //float p21 = texture(iChannel0, q+e.xz).z;
-    //float p12 = texture(iChannel0, q+e.zy).z;
-    //float p10 = V(q-e.zy).y;
-    //float p01 = V(q-e.xz).y;
-    //float p21 = V(q+e.xz).y;
-    //float p12 = V(q+e.zy).y;
-    
-    //vec4 w = texture(iChannel0, q);
-    //vec4 w = rho.x;
     vec4 w = vec4(1.0);
     
     // Totally fake displacement and shading:
@@ -78,7 +66,7 @@ void mainImage( out vec4 col, in vec2 pos )
     uv = uv * 0.5;
     vec4 c = 2.0 * texture(iChannel3, uv);
     c += c * 0.5;
-    c += c * w; // * (0.5 - distance(q, vec2(0.5)));
+    c += c * w;
     c = vec4(1.0);
     vec3 lightDir = vec3(0.2, -0.5, 0.7);
     vec3 light = normalize(lightDir);

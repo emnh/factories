@@ -3,7 +3,7 @@ void mainImage( out vec4 U, in vec2 pos )
     R = iResolution.xy; time = iTime; Mouse = iMouse;
     ivec2 p = ivec2(pos);
 
-    vec4 data = texel(ch0, pos); 
+    //vec4 data = texel(ch0, pos); 
     
     particle P;// = getParticle(data, pos);
        

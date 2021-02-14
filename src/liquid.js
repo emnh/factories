@@ -79,9 +79,12 @@ export function init(canvas, width, height) {
   renderer.autoClearColor = false;
 	renderer.setSize(width, height);
   
-  const hdim = 4;
-  const simWidth = 512 * hdim;
-  const simHeight = 512 * hdim;
+  const hdim = 1;
+  const zextra = 2;
+  const simWidthOne = 512;
+  const simHeightOne = 512;
+  const simWidth = simWidthOne * hdim * zextra;
+  const simHeight = simHeightOne;
 
   const camera = new THREE.OrthographicCamera(
     -1, // left
@@ -102,27 +105,27 @@ export function init(canvas, width, height) {
   texture.wrapT = THREE.RepeatWrapping;
 
   const opts = {
+    //wrapS: THREE.RepeatWrapping,
+    //wrapT: THREE.RepeatWrapping,
     minFilter: THREE.LinearFilter,
     magFilter: THREE.NearestFilter,
     format: THREE.RGBAFormat,
     type: THREE.FloatType
   };
-	const bufferAs = [];
-	const bufferBs = [];
-	//const bufferCs = [];
-	//const bufferDs = [];
 
   let f = () => new THREE.WebGLRenderTarget(simWidth, simHeight, opts);
+  let f2 = () => new THREE.WebGLRenderTarget(simWidthOne, simHeightOne, opts);
   const bufferA = f();
   const bufferB = f();
-  const bufferC = f();
-  const bufferD = f();
+  const bufferC = f2();
+  const bufferD = f2();
 
   const uniformsA = {
     iTime: { value: 0 },
     iFrame: { value: 0 },
-    iResolution:  { value: new THREE.Vector3() },
-    iChannel0: { value: null }
+    iResolution:  { value: new THREE.Vector2() },
+    iResolutionOne:  { value: new THREE.Vector2() },
+    iChannel0: { value: bufferB.texture }
   };
   const materialA = new THREE.ShaderMaterial({
     fragmentShader: commonShader + bufferAShader,
@@ -132,8 +135,9 @@ export function init(canvas, width, height) {
   const uniformsB = {
     iTime: { value: 0 },
     iFrame: { value: 0 },
-    iResolution:  { value: new THREE.Vector3() },
-    iChannel0: { value: null }
+    iResolution:  { value: new THREE.Vector2() },
+    iResolutionOne:  { value: new THREE.Vector2() },
+    iChannel0: { value: bufferA.texture }
   };
   const materialB = new THREE.ShaderMaterial({
     fragmentShader: commonShader + bufferBShader,
@@ -143,7 +147,8 @@ export function init(canvas, width, height) {
   const uniformsC = {
     iTime: { value: 0 },
     iFrame: { value: 0 },
-    iResolution:  { value: new THREE.Vector3() },
+    iResolution:  { value: new THREE.Vector2() },
+    iResolutionOne:  { value: new THREE.Vector2() },
     iChannel0: { value: bufferA.texture }
   };
   const materialC = new THREE.ShaderMaterial({
@@ -152,12 +157,14 @@ export function init(canvas, width, height) {
   });
 
   const uniforms = {
-    iResolution:  { value: new THREE.Vector3() },
+    iResolution:  { value: new THREE.Vector2() },
+    iResolutionOne:  { value: new THREE.Vector2() },
     iMouse: { value: new THREE.Vector4() },
     iTime: { value: 0 },
     iFrame: { value: 0 },
     iChannel0: { value: bufferA.texture },
     iChannel1: { value: bufferC.texture },
+    // TODO: I think iChannel2 can be removed
     iChannel2: { value: bufferB.texture },
     iChannel3: { value: texture },
     iChannelResolution0: { value: new THREE.Vector3() },
@@ -187,7 +194,8 @@ export function init(canvas, width, height) {
   const heightMap = new THREE.DataTexture(data, dataWidth, dataHeight, THREE.RGBAFormat, THREE.FloatType);
   heightMap.needsUpdate = true;
   const uniforms3d = {
-    iResolution:  { value: new THREE.Vector3() },
+    iResolution:  { value: new THREE.Vector2() },
+    iResolutionOne:  { value: new THREE.Vector2() },
     iMouse: { value: new THREE.Vector4() },
     iTime: { value: 0 },
     iFrame: { value: 0 },
@@ -195,10 +203,10 @@ export function init(canvas, width, height) {
     iChannel1: { value: bufferC.texture },
     iChannel2: { value: heightMap },
     iChannel3: { value: texture },
-    iChannelResolution0: { value: new THREE.Vector3() },
-    iChannelResolution1: { value: new THREE.Vector3() },
-    iChannelResolution2: { value: new THREE.Vector3() },
-    iChannelResolution3: { value: new THREE.Vector3() }
+    iChannelResolution0: { value: new THREE.Vector2() },
+    iChannelResolution1: { value: new THREE.Vector2() },
+    iChannelResolution2: { value: new THREE.Vector2() },
+    iChannelResolution3: { value: new THREE.Vector2() }
   };
 
   const terrainMaterial = new THREE.ShaderMaterial({
@@ -240,12 +248,17 @@ export function init(canvas, width, height) {
     time *= 0.001;  // convert to seconds
 
     const canvas = renderer.domElement;
-    uniformsA.iResolution.value.set(simWidth, simHeight, 1);
-    uniformsB.iResolution.value.set(simWidth, simHeight, 1);
-    uniformsC.iResolution.value.set(simWidth, simHeight, 1);
-    uniforms.iResolution.value.set(simWidth, simHeight, 1);
+    uniformsA.iResolution.value.set(simWidth, simHeight);
+    uniformsB.iResolution.value.set(simWidth, simHeight);
+    uniformsC.iResolution.value.set(simWidth, simHeight);
+    uniforms.iResolution.value.set(simWidthOne, simHeightOne);
+    uniformsA.iResolutionOne.value.set(simWidthOne, simHeightOne);
+    uniformsB.iResolutionOne.value.set(simWidthOne, simHeightOne);
+    uniformsC.iResolutionOne.value.set(simWidthOne, simHeightOne);
+    uniforms.iResolutionOne.value.set(simWidthOne, simHeightOne);
+    //uniforms.iResolution.value.set(simWidth / (hdim * zextra), simHeight, 1);
     if (texture.image !== undefined && texture.image.width > 0) {
-      uniforms.iChannelResolution3.value.set(texture.image.width, texture.image.height, 0.0);
+      uniforms.iChannelResolution3.value.set(texture.image.width, texture.image.height);
       uniforms.iChannelResolution3.needsUpdate = true;
     }
     uniformsA.iTime.value = time;
@@ -262,36 +275,40 @@ export function init(canvas, width, height) {
     renderer.setSize(simWidth, simHeight);
     objects3d.visible = false;
     mesh.visible = true;
-    for (let r = 0; r < 4; r++) {
-      uniformsA.iChannel0.value = bufferB.texture;
+    for (let r = 0; r < 1; r++) {
+      //uniformsA.iChannel0.value = bufferB.texture;
       mesh.material = materialA;
       renderer.setRenderTarget(bufferA);
       renderer.render(scene, camera);
 
-      uniformsB.iChannel0.value = bufferA.texture;
+      //uniformsB.iChannel0.value = bufferA.texture;
       mesh.material = materialB;
       renderer.setRenderTarget(bufferB);
       renderer.render(scene, camera);
     }
 
-    uniformsC.iChannel0.value = bufferA.texture;
+    //uniformsC.iChannel0.value = bufferA.texture;
+    renderer.setSize(simWidthOne, simHeightOne);
     mesh.material = materialC;
     renderer.setRenderTarget(bufferC);
     renderer.render(scene, camera);
 
-    uniforms.iChannel0.value = bufferA.texture;
-    uniforms.iChannel2.value = bufferB.texture;
+    //uniforms.iChannel0.value = bufferA.texture;
+    //uniforms.iChannel2.value = bufferB.texture;
     mesh.material = material;
     renderer.setRenderTarget(bufferD);
+    renderer.setRenderTarget(null);
     renderer.render(scene, camera);
 
     //resizeRendererToDisplaySize(renderer);
+    /*
     renderer.setSize(width, height);
     mesh.visible = false;
     objects3d.visible = true;
     renderer.setRenderTarget(null);
     renderer.clear();
     renderer.render(scene, camera3d);
+    */
 
     frame++;
 

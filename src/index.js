@@ -102,7 +102,9 @@ class Conveyor {
         height: this.height
       });
       filter.uniforms.time = i / spriteCount;
-      app.renderer.render(container, renderTexture);
+
+      //app.renderer.render(container, renderTexture);
+      
       //console.log(app.renderer);
       //renderTexture.updateUvs();
       //renderTexture.updateUvs();
@@ -691,12 +693,14 @@ const main = function() {
   gridy = gridx; //Math.floor(baseHeight / 40);
   width = Math.floor(baseWidth / gridx) * gridx;
   height = Math.floor(baseHeight / gridy) * gridy;
+  /*
   app = new PIXI.Application({
     antialias: true,
     width: width,
     height: height,
     transparent: true
   });
+  */
   conveyor = new Conveyor(50, 50).draw();
 
   registerRAF();
@@ -704,9 +708,9 @@ const main = function() {
   $("body").css("margin", "0px");
   $("body").css("padding", "0px");
 	$("#subcontent").empty();
-  $("#subcontent").append(app.view);
+  //$("#subcontent").append(app.view);
   $("#subcontent").append("<canvas id='three' />");
-	(level(1))();
+	//(level(1))();
   $("#content").css("position", "absolute");
   $("#content").css("left", 0 + "px");
   $("#content").css("top", titleHeight + "px");
@@ -720,12 +724,13 @@ const main = function() {
   $("#subcontent").append(liquid.init($("canvas#three")[0], width, height));
 	fixCanvas(imgWidth, imgHeight, width, height);
 
+  /*
 	screen.lockOrientationUniversal =
 		screen.lockOrientation || screen.mozLockOrientation || screen.msLockOrientation;
 	if (screen.lockOrientationUniversal !== undefined) {
 		screen.lockOrientationUniversal('portrait');
 		if (screen.orientation !== undefined) {
-			screen.orientation.lock();
+			screen.orientation.lock('portrait');
 		}
 	  $(window)
 			.bind('orientationchange', function(){
@@ -746,6 +751,7 @@ const main = function() {
 			 })
 			.trigger('orientationchange');
 	}
+  */
 };
 
 //window.addEventListener('resize', main);

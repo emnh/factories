@@ -1,4 +1,5 @@
 uniform vec2 iResolution;
+uniform vec2 iResolutionOne;
 uniform vec4 iMouse;
 uniform float iTime;
 uniform int iFrame;
@@ -6,12 +7,12 @@ uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
 uniform sampler2D iChannel3;
-uniform vec3 iChannelResolution0;
-uniform vec3 iChannelResolution1;
-uniform vec3 iChannelResolution2;
-uniform vec3 iChannelResolution3;
+uniform vec2 iChannelResolution0;
+uniform vec2 iChannelResolution1;
+uniform vec2 iChannelResolution2;
+uniform vec2 iChannelResolution3;
 
-#define hdim 4
+#define zextra 2
 #define Bf(p) p
 #define Bi(p) ivec2(p)
 #define texel(a, p) texelFetch(a, Bi(p), 0)
@@ -26,7 +27,7 @@ uniform vec3 iChannelResolution3;
 #define loop(i,x) for(int i = 0; i < x; i++)
 #define range(i,a,b) for(int i = a; i <= b; i++)
 
-#define dt 1.5
+#define dt 0.1
 
 #define border_h 5.
 vec2 R;
@@ -107,24 +108,58 @@ float encode(vec2 x)
 
 struct particle
 {
-    vec2 X;
-    vec2 V;
+    vec3 X;
+    vec3 V;
     vec2 M;
 };
+
+struct position {
+  vec2 tpos;
+  vec2 tposZ;
+  vec3 addpos;
+};
+
+position getPos(vec2 pos, int i, int j, int k) {
+  position p;
+  vec2 tpos = pos.xy;
+  tpos.x = floor(floor(pos.x) / float(zextra)) * float(zextra) + fract(pos.x);
+  //vec2 tpos = pos.xy - vec2(mod(floor(pos.x), float(zextra)), 0.0);
+  p.tpos = tpos + vec2(float(k) * float(iResolutionOne.x) * float(zextra), 0.0) + vec2(i * zextra, j);
+  p.tposZ = p.tpos + vec2(1.0, 0.0);
+  float kbase = floor(floor(pos.x) / (max(1.0, iResolutionOne.x) * float(zextra)));
+  float posx = floor((pos.x - kbase) / float(zextra));
+  p.addpos = vec3(posx + fract(pos.x), pos.y, kbase) + vec3(i, j, k);
+  return p;
+}
     
-particle getParticle(vec4 data, vec2 pos)
+particle getParticle(vec4 data, vec4 data2, vec3 pos)
 {
     particle P; 
-    P.X = decode(data.x) + pos;
-    P.V = decode(data.y);
+    P.X.xy = decode(data.x) + pos.xy;
+    P.V.xy = decode(data.y);
+    vec2 zz = decode(data2.x);
+    //vec2 zz = vec2(0.0, 0.0);
+    //vec2 zz = data2.xy;
+    P.X.z = zz.x + pos.z;
+    P.V.z = zz.y;
     P.M = data.zw;
     return P;
 }
 
-vec4 saveParticle(particle P, vec2 pos)
+vec4 saveParticle(particle P, vec2 pos, vec3 addpos)
 {
-    P.X = clamp(P.X - pos, vec2(-0.5), vec2(0.5));
-    return vec4(encode(P.X), encode(P.V), P.M);
+    P.X = clamp(P.X - addpos, vec3(-0.5), vec3(0.5));
+    //P.X.z = 0.0;
+    //P.V.z = 0.0;
+
+    uint px = uint(floor(pos.x));
+    if (px % uint(2) == uint(0)) {
+      return vec4(encode(P.X.xy), encode(P.V.xy), P.M);
+    } else {
+      vec2 zz = vec2(P.X.z, P.V.z);
+      return vec4(encode(zz), 0.0, 0.0, 0.0);
+      //return vec4(zz.x, zz.y, 0.0, 0.0);
+    }
 }
 
 vec3 hash32(vec2 p)
@@ -134,12 +169,13 @@ vec3 hash32(vec2 p)
     return fract((p3.xxy+p3.yzz)*p3.zyx);
 }
 
-float G(vec2 x)
+float G(vec3 x)
 {
-    return exp(-dot(x,x));
+    return 0.1 * exp(-dot(x,x));
+    //return dot(x,x);
 }
 
-float G0(vec2 x)
+float G0(vec3 x)
 {
     return exp(-length(x));
 }
@@ -147,11 +183,12 @@ float G0(vec2 x)
 //diffusion amount
 #define dif 1.12
 
-vec3 distribution(vec2 x, vec2 p, float K)
+vec4 distribution(vec3 x, vec3 p, float K)
 {
-    vec2 omin = clamp(x - K*0.5, p - 0.5, p + 0.5);
-    vec2 omax = clamp(x + K*0.5, p - 0.5, p + 0.5); 
-    return vec3(0.5*(omin + omax), (omax.x - omin.x)*(omax.y - omin.y)/(K*K));
+    vec3 omin = clamp(x - K*0.5, p - 0.5, p + 0.5);
+    vec3 omax = clamp(x + K*0.5, p - 0.5, p + 0.5); 
+    return vec4(0.5*(omin + omax), (omax.x - omin.x)*(omax.y - omin.y)*(omax.z - omin.z)/(K*K*K));
+    //return vec4(0.5*(omin + omax), (omax.x - omin.x)*(omax.y - omin.y)/(K*K));
 }
 
 //diffusion and advection basically
@@ -160,22 +197,22 @@ void Reintegration(sampler2D ch, inout particle P, vec2 pos)
     //basically integral over all updated neighbor distributions
     //that fall inside of this pixel
     //this makes the tracking conservative
-    range(i, -2, 2) range(j, -2, 2) range(k, -1, 1)
+    range(i, -2, 2) range(j, -2, 2) range(k, -2, 2)
     {
-        vec2 tpos = pos + vec2(8 * i + k,j);
-        vec4 data = texel(ch, tpos);
-       
-        particle P0 = getParticle(data, tpos);
+        position tpos = getPos(pos, i, j, k);
+        vec4 data = texel(ch, tpos.tpos);
+        vec4 data2 = texel(ch, tpos.tposZ);
+        particle P0 = getParticle(data, data2, tpos.addpos);
        
         P0.X += P0.V*dt; //integrate position
 
         float difR = 0.9 + 0.21*smoothstep(fluid_rho*0., fluid_rho*0.333, P0.M.x);
-        vec3 D = distribution(P0.X, pos, difR);
+        vec4 D = distribution(P0.X, tpos.addpos, difR);
         //the deposited mass into this cell
-        float m = P0.M.x*D.z;
+        float m = P0.M.x*D.w;
         
         //add weighted by mass
-        P.X += D.xy*m;
+        P.X += D.xyz*m;
         P.V += P0.V*m;
         P.M.y += P0.M.y*m;
         
@@ -196,15 +233,17 @@ void Reintegration(sampler2D ch, inout particle P, vec2 pos)
 void Simulation(sampler2D ch, inout particle P, vec2 pos)
 {
     //Compute the SPH force
-    vec2 F = vec2(0.);
-    vec3 avgV = vec3(0.);
+    vec3 F = vec3(0.);
+    vec4 avgV = vec4(0.);
     
-    range(i, -2, 2) range(j, -2, 2)
+    range(i, -2, 2) range(j, -2, 2) range(k, -2, 2)
     {
-        vec2 tpos = pos + vec2(i,j);
-        vec4 data = texel(ch, tpos);
-        particle P0 = getParticle(data, tpos);
-        vec2 dx = P0.X - P.X;
+        position tpos = getPos(pos, i, j, k);
+        vec4 data = texel(ch, tpos.tpos);
+        vec4 data2 = texel(ch, tpos.tposZ);
+        particle P0 = getParticle(data, data2, tpos.addpos);
+
+        vec3 dx = P0.X - P.X;
         float avgP = 0.5*P0.M.x*(Pf(P.M) + Pf(P0.M)); 
         F -= 0.5*G(1.*dx)*avgP*dx;
         if (length(dx) < 1.0) {
@@ -212,45 +251,59 @@ void Simulation(sampler2D ch, inout particle P, vec2 pos)
             //F -= 0.0001 * dx;
             //F *= 0.0000000001 * dx;
         }
-        avgV += P0.M.x*G(1.*dx)*vec3(P0.V,1.);
+        avgV += P0.M.x*G(1.*dx)*vec4(P0.V,1.);
     }
     //F /= vec2(10.0);
-    avgV.xy /= avgV.z;
+    if (avgV.w != 0.0) {
+      avgV.xyz /= avgV.w;
+    }
 
     //viscosity
-    F += 0.*P.M.x*(avgV.xy - P.V);
+    // TODO: reenable
+    //F += 0.*P.M.x*(avgV.xyz - P.V);
     
     //gravity
-    F -= P.M.x*vec2(0., 0.0004);
-    vec2 PDC = P.X - 0.5 * R;
+    // TODO: reenable
+    //F -= P.M.x*vec3(0., 0.0004, 0.0);
+    vec2 PDC = P.X.xy - 0.5 * R;
     if (length(PDC) < length(0.1 * R)) {
-        F -= P.M.x*0.0001*(PDC);
+        F -= P.M.x*0.0001*(vec3(PDC, 0.0));
+    }
+    vec3 PDC2 = P.X - vec3(0.5 * R, 0.5);
+    if (length(PDC2) < length(R)) {
+        F -= P.M.x*0.0001*(PDC2);
+    }
+    float PDC3 = abs(P.X.z - 0.5);
+    if (PDC3 < 1.0) {
+        F.z -= P.M.x*0.0001*(PDC3);
     }
     //F -= P.M.x*0.01*(center.xy);
 
 
     if(Mouse.z > 0.)
     {
-        vec2 dm =(Mouse.xy - Mouse.zw)/10.; 
-        float d = distance(Mouse.xy, P.X)/20.;
+        vec3 dm = vec3((Mouse.xy - Mouse.zw)/10., 0.0); 
+        float d = distance(Mouse.xy, P.X.xy)/20.;
         F += 0.001*dm*exp(-d*d);
        // P.M.y += 0.1*exp(-40.*d*d);
     }
     
     //integrate
-    P.V += F*dt/P.M.x;
+    if (P.M.x != 0.0) {
+      P.V += F*dt/P.M.x;
+    }
 
     //border 
-    vec3 N = bN(P.X);
-    float vdotN = step(N.z, border_h)*dot(-N.xy, P.V);
-    P.V += 0.5*(N.xy*vdotN + N.xy*abs(vdotN));
-    P.V += 0.*P.M.x*N.xy*step(abs(N.z), border_h)*exp(-N.z);
+    vec3 N = bN(P.X.xy);
+    float vdotN = step(N.z, border_h)*dot(-N.xy, P.V.xy);
+    P.V.xy += 0.5*(N.xy*vdotN + N.xy*abs(vdotN));
+    P.V.xy += 0.*P.M.x*N.xy*step(abs(N.z), border_h)*exp(-N.z);
     
-    if(N.z < 0.) P.V = vec2(0.);
-    
+    if(N.z < 0.) P.V = vec3(0.);
     
     //velocity limit
     //P.V *= 0.997;
+    // TODO: reenable
     float v = length(P.V);
     P.V /= (v > 1.)?v:1.;
 }
