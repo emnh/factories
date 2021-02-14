@@ -60,7 +60,7 @@ function main(canvas, width, height) {
   const plane = new THREE.PlaneGeometry(2, 2);
 
   const loader = new THREE.TextureLoader();
-  const texture = loader.load('./bayer.jpg');
+  const texture = loader.load('./dist/background-shadertoy-tttfR2.jpg');
   texture.minFilter = THREE.NearestFilter;
   texture.magFilter = THREE.NearestFilter;
   texture.wrapS = THREE.RepeatWrapping;

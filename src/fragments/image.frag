@@ -76,16 +76,18 @@ void mainImage( out vec4 col, in vec2 pos )
     vec3 grad3 = vec3(grad.xz, 1.0);
     vec2 uv = pos*4./iChannelResolution3.xy + grad3.xy;
     uv = uv * 0.5;
-    vec4 c = texture(iChannel3, uv);
+    vec4 c = 2.0 * texture(iChannel3, uv);
     c += c * 0.5;
-    c += c * w * (0.5 - distance(q, vec2(0.5)));
+    c += c * w; // * (0.5 - distance(q, vec2(0.5)));
+    c = vec4(1.0);
     vec3 lightDir = vec3(0.2, -0.5, 0.7);
     vec3 light = normalize(lightDir);
     
     //float diffuse = dot(grad3, light);
     float diffuse = dot(grad3, light);
     float spec = pow(max(0.,-reflect(light,grad3).z),32.);
-    vec4 col2 = tanh(mix(c,vec4(.7,.8,1.,1.),.25)*max(diffuse,0.) + spec);
+    //vec4 col2 = tanh(mix(c,vec4(.7,.8,1.,1.),.25)*max(diffuse,0.) + spec);
+    vec4 col2 = tanh(c*max(diffuse,0.) + spec);
     //col.xyz = a > 0.5 ? mixN(col.xyz, col.xyz * col2.xyz, 1.5) : col2.xyz;
     col.xyz = a > 0.5 ? 2.0 * col.xyz * col2.xyz : col2.xyz;
 }
