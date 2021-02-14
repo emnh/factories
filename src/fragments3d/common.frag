@@ -11,6 +11,7 @@ uniform vec3 iChannelResolution1;
 uniform vec3 iChannelResolution2;
 uniform vec3 iChannelResolution3;
 
+#define hdim 4
 #define Bf(p) p
 #define Bi(p) ivec2(p)
 #define texel(a, p) texelFetch(a, Bi(p), 0)
@@ -153,28 +154,15 @@ vec3 distribution(vec2 x, vec2 p, float K)
     return vec3(0.5*(omin + omax), (omax.x - omin.x)*(omax.y - omin.y)/(K*K));
 }
 
-/*
-vec3 distribution(vec2 x, vec2 p, float K)
-{
-    vec4 aabb0 = vec4(p - 0.5, p + 0.5);
-    vec4 aabb1 = vec4(x - K*0.5, x + K*0.5);
-    vec4 aabbX = vec4(max(aabb0.xy, aabb1.xy), min(aabb0.zw, aabb1.zw));
-    vec2 center = 0.5*(aabbX.xy + aabbX.zw); //center of mass
-    vec2 size = max(aabbX.zw - aabbX.xy, 0.); //only positive
-    float m = size.x*size.y/(K*K); //relative amount
-    //if any of the dimensions are 0 then the mass is 0
-    return vec3(center, m);
-}*/
-
 //diffusion and advection basically
 void Reintegration(sampler2D ch, inout particle P, vec2 pos)
 {
     //basically integral over all updated neighbor distributions
     //that fall inside of this pixel
     //this makes the tracking conservative
-    range(i, -2, 2) range(j, -2, 2)
+    range(i, -2, 2) range(j, -2, 2) range(k, -1, 1)
     {
-        vec2 tpos = pos + vec2(i,j);
+        vec2 tpos = pos + vec2(8 * i + k,j);
         vec4 data = texel(ch, tpos);
        
         particle P0 = getParticle(data, tpos);
@@ -210,22 +198,6 @@ void Simulation(sampler2D ch, inout particle P, vec2 pos)
     //Compute the SPH force
     vec2 F = vec2(0.);
     vec3 avgV = vec3(0.);
-    
-    /*
-    vec3 center = vec3(0.0);
-    range(i, -2, 2) range(j, -2, 2)
-    {
-        vec2 tpos = pos + vec2(i,j);
-        vec4 data = texel(ch, tpos);
-        particle P0 = getParticle(data, tpos);
-        vec2 dx = P0.X - P.X;
-        if (length(dx) < 1.0) {
-            center.xy += dx;
-            center.z += 1.0;
-        }
-    }
-    center.xy /= center.z;
-    */
     
     range(i, -2, 2) range(j, -2, 2)
     {

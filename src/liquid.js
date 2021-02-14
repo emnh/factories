@@ -1,4 +1,6 @@
+const $ = require("jquery");
 const THREE = require('three');
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 const mainShader = `
 void main() {
@@ -20,16 +22,16 @@ const heightVertexShader = `
 		uniform vec3 iChannelResolution2;
 		uniform vec3 iChannelResolution3;
 
-    varying vec2 vUV; 
+    varying vec2 vUV;
 
     void main() {
-      vUV = uv; 
-			
+      vUV = uv;
+
 			float height = tanh(texture(iChannel1, uv).z);
 			vec3 pos = position;
 			pos.y = 0.1 * height;
       vec4 modelViewPosition = modelViewMatrix * vec4(pos, 1.0);
-      gl_Position = projectionMatrix * modelViewPosition; 
+      gl_Position = projectionMatrix * modelViewPosition;
     }
 `;
 
@@ -71,12 +73,15 @@ function animation( time ) {
 }
 */
 
-function main(canvas, width, height) {
+export function init(canvas, width, height) {
   //const canvas = document.querySelector('#c');
   const renderer = new THREE.WebGLRenderer({canvas, width, height});
   renderer.autoClearColor = false;
-  //renderer.autoClearColor = true;
 	renderer.setSize(width, height);
+  
+  const hdim = 4;
+  const simWidth = 512 * hdim;
+  const simHeight = 512 * hdim;
 
   const camera = new THREE.OrthographicCamera(
     -1, // left
@@ -102,16 +107,22 @@ function main(canvas, width, height) {
     format: THREE.RGBAFormat,
     type: THREE.FloatType
   };
-	const bufferA = new THREE.WebGLRenderTarget(width, height, opts);
-	const bufferB = new THREE.WebGLRenderTarget(width, height, opts);
-	const bufferC = new THREE.WebGLRenderTarget(width, height, opts);
-	const bufferD = new THREE.WebGLRenderTarget(width, height, opts);
+	const bufferAs = [];
+	const bufferBs = [];
+	//const bufferCs = [];
+	//const bufferDs = [];
+
+  let f = () => new THREE.WebGLRenderTarget(simWidth, simHeight, opts);
+  const bufferA = f();
+  const bufferB = f();
+  const bufferC = f();
+  const bufferD = f();
 
   const uniformsA = {
     iTime: { value: 0 },
     iFrame: { value: 0 },
     iResolution:  { value: new THREE.Vector3() },
-    iChannel0: { value: bufferB.texture }
+    iChannel0: { value: null }
   };
   const materialA = new THREE.ShaderMaterial({
     fragmentShader: commonShader + bufferAShader,
@@ -122,7 +133,7 @@ function main(canvas, width, height) {
     iTime: { value: 0 },
     iFrame: { value: 0 },
     iResolution:  { value: new THREE.Vector3() },
-    iChannel0: { value: bufferA.texture }
+    iChannel0: { value: null }
   };
   const materialB = new THREE.ShaderMaterial({
     fragmentShader: commonShader + bufferBShader,
@@ -207,6 +218,9 @@ function main(canvas, width, height) {
   dirLight.position.set(0.0, 10.0, 0.0);
   dirLight.lookAt(terrainMesh.position);
 
+  const stats = new Stats();
+  $("#subcontent").append(stats.dom);
+
   function resizeRendererToDisplaySize(renderer) {
     const canvas = renderer.domElement;
     const width = canvas.clientWidth;
@@ -221,15 +235,15 @@ function main(canvas, width, height) {
   let frame = 0;
 
   function render(time) {
+    stats.begin();
+
     time *= 0.001;  // convert to seconds
 
-    resizeRendererToDisplaySize(renderer);
-
     const canvas = renderer.domElement;
-    uniformsA.iResolution.value.set(canvas.width, canvas.height, 1);
-    uniformsB.iResolution.value.set(canvas.width, canvas.height, 1);
-    uniformsC.iResolution.value.set(canvas.width, canvas.height, 1);
-    uniforms.iResolution.value.set(canvas.width, canvas.height, 1);
+    uniformsA.iResolution.value.set(simWidth, simHeight, 1);
+    uniformsB.iResolution.value.set(simWidth, simHeight, 1);
+    uniformsC.iResolution.value.set(simWidth, simHeight, 1);
+    uniforms.iResolution.value.set(simWidth, simHeight, 1);
     if (texture.image !== undefined && texture.image.width > 0) {
       uniforms.iChannelResolution3.value.set(texture.image.width, texture.image.height, 0.0);
       uniforms.iChannelResolution3.needsUpdate = true;
@@ -238,31 +252,41 @@ function main(canvas, width, height) {
     uniformsB.iTime.value = time;
     uniformsC.iTime.value = time;
     uniforms.iTime.value = time;
+    uniforms3d.iTime.value = time;
     uniformsA.iFrame.value = frame;
     uniformsB.iFrame.value = frame;
     uniformsC.iFrame.value = frame;
     uniforms.iFrame.value = frame;
+    uniforms3d.iFrame.value = frame;
 
+    renderer.setSize(simWidth, simHeight);
     objects3d.visible = false;
     mesh.visible = true;
-    for (let i = 0; i < 4; i++) {
+    for (let r = 0; r < 4; r++) {
+      uniformsA.iChannel0.value = bufferB.texture;
       mesh.material = materialA;
       renderer.setRenderTarget(bufferA);
       renderer.render(scene, camera);
 
+      uniformsB.iChannel0.value = bufferA.texture;
       mesh.material = materialB;
       renderer.setRenderTarget(bufferB);
       renderer.render(scene, camera);
-
-      mesh.material = materialC;
-      renderer.setRenderTarget(bufferC);
-      renderer.render(scene, camera);
     }
 
+    uniformsC.iChannel0.value = bufferA.texture;
+    mesh.material = materialC;
+    renderer.setRenderTarget(bufferC);
+    renderer.render(scene, camera);
+
+    uniforms.iChannel0.value = bufferA.texture;
+    uniforms.iChannel2.value = bufferB.texture;
     mesh.material = material;
     renderer.setRenderTarget(bufferD);
     renderer.render(scene, camera);
 
+    //resizeRendererToDisplaySize(renderer);
+    renderer.setSize(width, height);
     mesh.visible = false;
     objects3d.visible = true;
     renderer.setRenderTarget(null);
@@ -271,12 +295,14 @@ function main(canvas, width, height) {
 
     frame++;
 
+    stats.end();
+
     requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
 }
 
-module.exports = {
+/*module.exports = {
 	init: main
-};
+};*/

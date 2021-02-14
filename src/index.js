@@ -1,6 +1,7 @@
 const $ = require("jquery");
 const PIXI = require("pixi.js");
 const liquid = require('./liquid.js');
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 require('./keys.js');
 
 class Belt {
@@ -650,7 +651,7 @@ const level = function(i) {
 };
 
 const addMenuItem = function(menuWidth, titleHeight, container, text, fun, background) {
-  $t = $("<input type='button' value='" + text + "'></input>");
+  const $t = $("<input type='button' value='" + text + "'></input>");
   container.append($t);
 	$t.css("background", background);
   $t.css("display", "inline");

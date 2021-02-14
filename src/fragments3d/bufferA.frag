@@ -6,7 +6,7 @@ void mainImage( out vec4 U, in vec2 pos )
     vec4 data = texel(ch0, pos); 
     
     particle P;// = getParticle(data, pos);
-       
+     
     Reintegration(ch0, P, pos);
    
     //initial condition

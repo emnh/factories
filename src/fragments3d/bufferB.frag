@@ -1,12 +1,7 @@
-void mainImage( out vec4 U, in vec2 pos )
-{
-    R = iResolution.xy; time = iTime; Mouse = iMouse;
-    ivec2 p = ivec2(pos);
-        
+particle getP(sampler2D ch, vec2 pos) {
     vec4 data = texel(ch0, pos); 
     
     particle P = getParticle(data, pos);
-    
     
     if(P.M.x != 0.) //not vacuum
     {
@@ -27,5 +22,15 @@ void mainImage( out vec4 U, in vec2 pos )
         P.M = mix(P.M, vec2(fluid_rho, 0.), 0.4);
     }
     
+    return P;
+}
+
+void mainImage( out vec4 U, in vec2 pos )
+{
+    R = iResolution.xy; time = iTime; Mouse = iMouse;
+    // ivec2 p = ivec2(pos);
+    
+    particle P = getP(ch0, pos);
+        
     U = saveParticle(P, pos);
 }
