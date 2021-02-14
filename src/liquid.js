@@ -6,11 +6,40 @@ void main() {
 }
 `;
 
-const commonShader = require('webpack-glsl-loader!./fragments/common.frag');
-const bufferAShader = require('webpack-glsl-loader!./fragments/bufferA.frag') + mainShader;
-const bufferBShader = require('webpack-glsl-loader!./fragments/bufferB.frag') + mainShader;
-const bufferCShader = require('webpack-glsl-loader!./fragments/bufferC.frag') + mainShader;
-const fragmentShader = require('webpack-glsl-loader!./fragments/image.frag') + mainShader;
+const heightVertexShader = `
+		uniform vec2 iResolution;
+		uniform vec4 iMouse;
+		uniform float iTime;
+		uniform int iFrame;
+		uniform sampler2D iChannel0;
+		uniform sampler2D iChannel1;
+		uniform sampler2D iChannel2;
+		uniform sampler2D iChannel3;
+		uniform vec3 iChannelResolution0;
+		uniform vec3 iChannelResolution1;
+		uniform vec3 iChannelResolution2;
+		uniform vec3 iChannelResolution3;
+
+    varying vec2 vUV; 
+
+    void main() {
+      vUV = uv; 
+			
+			float height = tanh(texture(iChannel1, uv).z);
+			vec3 pos = position;
+			pos.y = 0.1 * height;
+      vec4 modelViewPosition = modelViewMatrix * vec4(pos, 1.0);
+      gl_Position = projectionMatrix * modelViewPosition; 
+    }
+`;
+
+const commonShader = require('webpack-glsl-loader!./fragments3d/common.frag');
+const bufferAShader = require('webpack-glsl-loader!./fragments3d/bufferA.frag') + mainShader;
+const bufferBShader = require('webpack-glsl-loader!./fragments3d/bufferB.frag') + mainShader;
+const bufferCShader = require('webpack-glsl-loader!./fragments3d/bufferC.frag') + mainShader;
+const fragmentShader = require('webpack-glsl-loader!./fragments3d/image.frag') + mainShader;
+
+const heightShader = require('webpack-glsl-loader!./fragments3d/height.frag') + mainShader;
 
 /*
 let camera, scene, renderer;
@@ -46,6 +75,7 @@ function main(canvas, width, height) {
   //const canvas = document.querySelector('#c');
   const renderer = new THREE.WebGLRenderer({canvas, width, height});
   renderer.autoClearColor = false;
+  //renderer.autoClearColor = true;
 	renderer.setSize(width, height);
 
   const camera = new THREE.OrthographicCamera(
@@ -75,7 +105,8 @@ function main(canvas, width, height) {
 	const bufferA = new THREE.WebGLRenderTarget(width, height, opts);
 	const bufferB = new THREE.WebGLRenderTarget(width, height, opts);
 	const bufferC = new THREE.WebGLRenderTarget(width, height, opts);
- 
+	const bufferD = new THREE.WebGLRenderTarget(width, height, opts);
+
   const uniformsA = {
     iTime: { value: 0 },
     iFrame: { value: 0 },
@@ -130,6 +161,52 @@ function main(canvas, width, height) {
   const mesh = new THREE.Mesh(plane, material);
   scene.add(mesh);
 
+  // Add 3D scene on a separate object for easy visibility toggling
+  const dataWidth = 256;
+  const dataHeight = 256;
+  const objects3d = new THREE.Object3D();
+  scene.add(objects3d);
+  const terrainPlane = new THREE.PlaneBufferGeometry(10, 10, dataWidth, dataHeight);
+  terrainPlane.rotateX(-Math.PI * 0.5);
+  //const terrainMaterial = new THREE.MeshStandardMaterial({ color: 0x008000 });
+  const data = new Float32Array(4 * dataWidth * dataHeight);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = Math.random();
+  }
+  const heightMap = new THREE.DataTexture(data, dataWidth, dataHeight, THREE.RGBAFormat, THREE.FloatType);
+  heightMap.needsUpdate = true;
+  const uniforms3d = {
+    iResolution:  { value: new THREE.Vector3() },
+    iMouse: { value: new THREE.Vector4() },
+    iTime: { value: 0 },
+    iFrame: { value: 0 },
+    iChannel0: { value: bufferD.texture },
+    iChannel1: { value: bufferC.texture },
+    iChannel2: { value: heightMap },
+    iChannel3: { value: texture },
+    iChannelResolution0: { value: new THREE.Vector3() },
+    iChannelResolution1: { value: new THREE.Vector3() },
+    iChannelResolution2: { value: new THREE.Vector3() },
+    iChannelResolution3: { value: new THREE.Vector3() }
+  };
+
+  const terrainMaterial = new THREE.ShaderMaterial({
+		vertexShader: heightVertexShader,
+    fragmentShader: commonShader + heightShader,
+    uniforms: uniforms3d
+  });
+  const terrainMesh = new THREE.Mesh(terrainPlane, terrainMaterial);
+  //terrainMesh.rotation.set(-0.5 * Math.PI, 0.0, 0.0 * Math.PI);
+  objects3d.add(terrainMesh);
+  const camera3d = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  //objects3d.add(camera3d);
+  camera3d.position.set(5, 20, 5);
+  camera3d.lookAt(terrainMesh.position);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  objects3d.add(dirLight);
+  dirLight.position.set(0.0, 10.0, 0.0);
+  dirLight.lookAt(terrainMesh.position);
+
   function resizeRendererToDisplaySize(renderer) {
     const canvas = renderer.domElement;
     const width = canvas.clientWidth;
@@ -166,6 +243,8 @@ function main(canvas, width, height) {
     uniformsC.iFrame.value = frame;
     uniforms.iFrame.value = frame;
 
+    objects3d.visible = false;
+    mesh.visible = true;
     for (let i = 0; i < 4; i++) {
       mesh.material = materialA;
       renderer.setRenderTarget(bufferA);
@@ -181,9 +260,15 @@ function main(canvas, width, height) {
     }
 
     mesh.material = material;
-    renderer.setRenderTarget(null);
+    renderer.setRenderTarget(bufferD);
     renderer.render(scene, camera);
-    
+
+    mesh.visible = false;
+    objects3d.visible = true;
+    renderer.setRenderTarget(null);
+    renderer.clear();
+    renderer.render(scene, camera3d);
+
     frame++;
 
     requestAnimationFrame(render);
