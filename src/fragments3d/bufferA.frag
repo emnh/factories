@@ -3,9 +3,13 @@ void mainImage( out vec4 U, in vec2 pos )
     R = iResolutionOne.xy; time = iTime; Mouse = iMouse;
     ivec2 p = ivec2(pos);
 
-    particle P;
+    //particle P;
      
     position tpos = getPos(pos, 0, 0, 0);
+    vec4 data = texel(ch0, tpos.tpos);
+    vec4 data2 = texel(ch0, tpos.tposZ);
+    particle P = getParticle(data, data2, tpos.addpos);
+
     Reintegration(ch0, P, pos);
    
     //initial condition

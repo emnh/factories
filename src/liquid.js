@@ -35,11 +35,11 @@ const heightVertexShader = `
     }
 `;
 
-const commonShader = require('webpack-glsl-loader!./fragments3d/common.frag');
-const bufferAShader = require('webpack-glsl-loader!./fragments3d/bufferA.frag') + mainShader;
-const bufferBShader = require('webpack-glsl-loader!./fragments3d/bufferB.frag') + mainShader;
-const bufferCShader = require('webpack-glsl-loader!./fragments3d/bufferC.frag') + mainShader;
-const fragmentShader = require('webpack-glsl-loader!./fragments3d/image.frag') + mainShader;
+const commonShader = require('webpack-glsl-loader!./fragments/common.frag');
+const bufferAShader = require('webpack-glsl-loader!./fragments/bufferA.frag') + mainShader;
+const bufferBShader = require('webpack-glsl-loader!./fragments/bufferB.frag') + mainShader;
+const bufferCShader = require('webpack-glsl-loader!./fragments/bufferC.frag') + mainShader;
+const fragmentShader = require('webpack-glsl-loader!./fragments/image.frag') + mainShader;
 
 const heightShader = require('webpack-glsl-loader!./fragments3d/height.frag') + mainShader;
 
@@ -80,9 +80,9 @@ export function init(canvas, width, height) {
 	renderer.setSize(width, height);
   
   const hdim = 1;
-  const zextra = 2;
-  const simWidthOne = 512;
-  const simHeightOne = 512;
+  const zextra = 1;
+  const simWidthOne = 1024;
+  const simHeightOne = 1024;
   const simWidth = simWidthOne * hdim * zextra;
   const simHeight = simHeightOne;
 
@@ -112,6 +112,13 @@ export function init(canvas, width, height) {
     format: THREE.RGBAFormat,
     type: THREE.FloatType
   };
+
+  // TODO: check if WebGL2, if so it is built in
+  //console.log(renderer.getContext().getExtension('OES_texture_float'));
+  renderer.getContext().getExtension('OES_texture_float');
+  // TODO: complain if missing
+  //console.log("OES_texture_float_linear", renderer.getContext().getExtension('OES_texture_float_linear'));
+  renderer.getContext().getExtension('OES_texture_float_linear');
 
   let f = () => new THREE.WebGLRenderTarget(simWidth, simHeight, opts);
   let f2 = () => new THREE.WebGLRenderTarget(simWidthOne, simHeightOne, opts);
@@ -275,7 +282,8 @@ export function init(canvas, width, height) {
     renderer.setSize(simWidth, simHeight);
     objects3d.visible = false;
     mesh.visible = true;
-    for (let r = 0; r < 1; r++) {
+    //if (frame % 5 == 0) {
+    for (let r = 0; r < 8; r++) {
       //uniformsA.iChannel0.value = bufferB.texture;
       mesh.material = materialA;
       renderer.setRenderTarget(bufferA);
@@ -286,6 +294,7 @@ export function init(canvas, width, height) {
       renderer.setRenderTarget(bufferB);
       renderer.render(scene, camera);
     }
+    //}
 
     //uniformsC.iChannel0.value = bufferA.texture;
     renderer.setSize(simWidthOne, simHeightOne);

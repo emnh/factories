@@ -45,7 +45,7 @@ float Pf(vec2 rho)
 
 mat2 Rot(float ang)
 {
-    return mat2(cos(ang), -sin(ang), sin(ang), cos(ang)); 
+    return mat2(cos(ang), -sin(ang), sin(ang), cos(ang));
 }
 
 vec2 Dir(float ang)
@@ -62,7 +62,7 @@ float sdBox( in vec2 p, in vec2 b )
 
 float border(vec2 p)
 {
-    float bound = -sdBox(p - R*0.5, R*vec2(0.5, 0.5)); 
+    float bound = -sdBox(p - R*0.5, R*vec2(0.5, 0.5));
     float box = sdBox(Rot(0.*time)*(p - R*vec2(0.5, 0.6)) , R*vec2(0.05, 0.01));
     float drain = -sdBox(p - R*vec2(0.5, 0.7), R*vec2(1.5, 0.5));
     return max(drain,min(bound, box));
@@ -95,13 +95,13 @@ vec2 unpack(uint a)
 vec2 decode(float x)
 {
     uint X = floatBitsToUint(x);
-    return unpack(X); 
+    return unpack(X);
 }
 
 float encode(vec2 x)
 {
     uint X = pack(x);
-    return uintBitsToFloat(X); 
+    return uintBitsToFloat(X);
 }
 
 struct particle
@@ -110,10 +110,10 @@ struct particle
     vec2 V;
     vec2 M;
 };
-    
+
 particle getParticle(vec4 data, vec2 pos)
 {
-    particle P; 
+    particle P;
     P.X = decode(data.x) + pos;
     P.V = decode(data.y);
     P.M = data.zw;
@@ -149,7 +149,7 @@ float G0(vec2 x)
 vec3 distribution(vec2 x, vec2 p, float K)
 {
     vec2 omin = clamp(x - K*0.5, p - 0.5, p + 0.5);
-    vec2 omax = clamp(x + K*0.5, p - 0.5, p + 0.5); 
+    vec2 omax = clamp(x + K*0.5, p - 0.5, p + 0.5);
     return vec3(0.5*(omin + omax), (omax.x - omin.x)*(omax.y - omin.y)/(K*K));
 }
 
@@ -176,25 +176,25 @@ void Reintegration(sampler2D ch, inout particle P, vec2 pos)
     {
         vec2 tpos = pos + vec2(i,j);
         vec4 data = texel(ch, tpos);
-       
+
         particle P0 = getParticle(data, tpos);
-       
+
         P0.X += P0.V*dt; //integrate position
 
         float difR = 0.9 + 0.21*smoothstep(fluid_rho*0., fluid_rho*0.333, P0.M.x);
         vec3 D = distribution(P0.X, pos, difR);
         //the deposited mass into this cell
         float m = P0.M.x*D.z;
-        
+
         //add weighted by mass
         P.X += D.xy*m;
         P.V += P0.V*m;
         P.M.y += P0.M.y*m;
-        
+
         //add mass
         P.M.x += m;
     }
-    
+
     //normalization
     if(P.M.x != 0.)
     {
@@ -210,7 +210,7 @@ void Simulation(sampler2D ch, inout particle P, vec2 pos)
     //Compute the SPH force
     vec2 F = vec2(0.);
     vec3 avgV = vec3(0.);
-    
+
     /*
     vec3 center = vec3(0.0);
     range(i, -2, 2) range(j, -2, 2)
@@ -226,14 +226,14 @@ void Simulation(sampler2D ch, inout particle P, vec2 pos)
     }
     center.xy /= center.z;
     */
-    
+
     range(i, -2, 2) range(j, -2, 2)
     {
         vec2 tpos = pos + vec2(i,j);
         vec4 data = texel(ch, tpos);
         particle P0 = getParticle(data, tpos);
         vec2 dx = P0.X - P.X;
-        float avgP = 0.5*P0.M.x*(Pf(P.M) + Pf(P0.M)); 
+        float avgP = 0.5*P0.M.x*(Pf(P.M) + Pf(P0.M));
         F -= 0.5*G(1.*dx)*avgP*dx;
         if (length(dx) < 1.0) {
             float d = length(dx);
@@ -247,36 +247,36 @@ void Simulation(sampler2D ch, inout particle P, vec2 pos)
 
     //viscosity
     F += 0.*P.M.x*(avgV.xy - P.V);
-    
+
     //gravity
-    F -= P.M.x*vec2(0., 0.0004);
+    //F -= P.M.x*vec2(0., 0.0004);
     vec2 PDC = P.X - 0.5 * R;
     if (length(PDC) < length(0.1 * R)) {
-        F -= P.M.x*0.0001*(PDC);
+        F -= P.M.x*0.00001*(PDC);
     }
     //F -= P.M.x*0.01*(center.xy);
 
 
     if(Mouse.z > 0.)
     {
-        vec2 dm =(Mouse.xy - Mouse.zw)/10.; 
+        vec2 dm =(Mouse.xy - Mouse.zw)/10.;
         float d = distance(Mouse.xy, P.X)/20.;
         F += 0.001*dm*exp(-d*d);
        // P.M.y += 0.1*exp(-40.*d*d);
     }
-    
+
     //integrate
     P.V += F*dt/P.M.x;
 
-    //border 
+    //border
     vec3 N = bN(P.X);
     float vdotN = step(N.z, border_h)*dot(-N.xy, P.V);
     P.V += 0.5*(N.xy*vdotN + N.xy*abs(vdotN));
     P.V += 0.*P.M.x*N.xy*step(abs(N.z), border_h)*exp(-N.z);
-    
+
     if(N.z < 0.) P.V = vec2(0.);
-    
-    
+
+
     //velocity limit
     //P.V *= 0.997;
     float v = length(P.V);
